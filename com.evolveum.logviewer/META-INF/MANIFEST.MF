@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Log Viewer
+Bundle-SymbolicName: com.evolveum.logviewer;singleton:=true
+Bundle-Version: 0.0.1.qualifier
+Bundle-Activator: com.evolveum.logviewer.Activator
+Bundle-Vendor: Evolveum
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ org.eclipse.jface.text,
+ org.eclipse.ui.editors,
+ org.eclipse.ui.views
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-ActivationPolicy: lazy

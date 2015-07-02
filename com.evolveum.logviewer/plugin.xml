@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.editors">
+      <editor
+            name="Evolveum Log Viewer"
+            extensions="log"
+            icon="icons/sample.gif"
+            contributorClass="org.eclipse.ui.texteditor.BasicTextEditorActionContributor"
+            class="com.evolveum.logviewer.editor.LogViewerEditor"
+            id="com.evolveum.logviewer.editor.LogViewerEditor">
+      </editor>
+   </extension>
+
+</plugin>
