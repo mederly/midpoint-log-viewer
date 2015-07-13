@@ -3,6 +3,8 @@ package com.evolveum.logviewer.outline;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jface.text.IRegion;
+
 public class TreeNode {
 	
 	private List<TreeNode> children = new ArrayList<>();
@@ -16,6 +18,10 @@ public class TreeNode {
 		this.label = label;
 		this.offset = offset;
 		this.length = length;
+	}
+
+	public TreeNode(String label, IRegion region) {
+		this(label, region.getOffset(), region.getLength());
 	}
 
 	public List<TreeNode> getChildren() {

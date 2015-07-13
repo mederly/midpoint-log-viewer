@@ -22,6 +22,8 @@ import com.evolveum.logviewer.editor.LogViewerEditor;
 
 public class MyContentOutlinePage extends ContentOutlinePage {
 	
+	public static final String CONFIG_MARKER = "%%% CONFIGURATION %%%"; 
+	
 	private LogViewerEditor editor;
 
 	public MyContentOutlinePage(IDocumentProvider documentProvider, LogViewerEditor editor) {
@@ -54,58 +56,67 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 			return new TreeNode[0];
 		}
 		IDocument document = editor.getDocumentProvider().getDocument(editorInput);
-		List<TreeNode> nodes = new ArrayList<>();
+		
 		int lines = document.getNumberOfLines();
 		System.out.println("Lines: " + lines);
 		long start = System.currentTimeMillis();
 
-		List<TreeNode> mappings = new ArrayList<TreeNode>();
-		List<TreeNode> scriptsAndExpressions = new ArrayList<TreeNode>();
+		Parser parser = new Parser(document);
+		
+		boolean inConfigSection = false;
 		
 		for (int lineNumber = 0; lineNumber < lines; lineNumber++) {
 			try {
 				IRegion region = document.getLineInformation(lineNumber);
-				String line = document.get(region.getOffset(), region.getLength());
-				if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK")) {
-					IRegion region2 = document.getLineInformation(lineNumber+1);
-					String line2 = document.get(region2.getOffset(), region2.getLength());
-					TreeNode node = new TreeNode(getWaveInfo(line2) + " " + line.substring(5), region.getOffset(), region.getLength());
-					nodes.add(node);
-					node.addChildren(mappings);
-					mappings.clear();
-					node.addChildren(scriptsAndExpressions);	// shouldn't be any
-					scriptsAndExpressions.clear();
-				} else if (line.startsWith("---[ SCRIPT") || line.startsWith("---[ EXPRESSION")) {
-					TreeNode node = new TreeNode(line.substring(5), region.getOffset(), region.getLength());
-					scriptsAndExpressions.add(node);
-				} else if (line.startsWith("---[ MAPPING")) {
-					TreeNode node = new TreeNode(line.substring(5), region.getOffset(), region.getLength());
-					mappings.add(node);
-					node.addChildren(scriptsAndExpressions);
-					scriptsAndExpressions.clear();
-				} else if (line.startsWith("---[")) {
-					// add to mappings (temporarily)
-					TreeNode node = new TreeNode(line.substring(5), region.getOffset(), region.getLength());
-					mappings.add(node);
-					node.addChildren(scriptsAndExpressions);
-					scriptsAndExpressions.clear();
+				String line = getLine(document, region);
+				if (line.equals(CONFIG_MARKER) || inConfigSection) {
+					inConfigSection = true;
+					parser.onConfigLine(lineNumber, line, region);
+					continue;
 				}
+				
+				parser.onAnyLine(lineNumber, line, region);
+				if (isLogEntryStart(line)) {
+					parser.onLogEntryLine(lineNumber, line, region);
+				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK")) {
+					parser.onContextDumpStart(lineNumber, line, region);
+				} else if (line.startsWith("---[ SCRIPT")) {
+					parser.onScriptStart(lineNumber, line, region);
+				} else if (line.startsWith("---[ EXPRESSION")) {
+					parser.onExpressionStart(lineNumber, line, region);					
+				} else if (line.startsWith("---[ MAPPING")) {
+					parser.onMappingStart(lineNumber, line, region);					
+				} else if (line.startsWith("    PROJECTION ShadowType Discr")) {
+					parser.onProjectionContextDumpStart(lineNumber, line, region);
+				} else if (line.startsWith("---[ Going to EXECUTE")) {
+					parser.onGoingToExecute(lineNumber, line, region);		
+				} else if (line.startsWith("###[ CLOCKWORK SUMMARY")) {
+					parser.onClockworkSummary(lineNumber, line, region);
+				} else if (line.startsWith("---[")) {
+					parser.onMappingStart(lineNumber, line, region);		// temporary solution					
+				} 
 			} catch (BadLocationException e) {
 				System.err.println("Couldn't parse line #" + lineNumber + ": " + e);
 			}
 		}
+		System.out.println("### FOLDING REGIONS: " + parser.foldingRegions.size());
+		editor.updateFoldingStructure(parser.foldingRegions);
 		System.out.println("Parsed in " + (System.currentTimeMillis()-start) + " ms");
-		return nodes.toArray(new TreeNode[0]);
+		try {
+			parser.dumpInfo();
+		} catch (BadLocationException e) {
+			System.err.println("Couldn't dump info: " + e);
+		}
+		return parser.nodes.toArray(new TreeNode[0]);
 	}
 
-	// input like this: LensContext: state=SECONDARY, Wave(e=1,p=1,max=0), focus, 2 projections, 2 changes, fresh=true
-	private String getWaveInfo(String line) {
-		int i = line.indexOf("Wave(");
-		if (i < 0) {
-			return "?";
-		}
-		int j = line.indexOf(')', i);
-		return line.substring(i, j+1);
+	private String getLine(IDocument document, IRegion region) throws BadLocationException {
+		return document.get(region.getOffset(), region.getLength());
+	}
+
+	public static boolean isLogEntryStart(String line) {
+		// TEMPORARY!!!
+		return line.startsWith("201");
 	}
 
 	@Override
@@ -160,11 +171,11 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 		}
 	}
 
-	private String dumpPaths(TreePath[] paths) {
-		StringBuilder sb = new StringBuilder();
-		for (TreePath path : paths) {
-			sb.append("[path with last = ").append(path.getLastSegment()).append("] ");
-		}
-		return sb.toString();
-	}
+//	private String dumpPaths(TreePath[] paths) {
+//		StringBuilder sb = new StringBuilder();
+//		for (TreePath path : paths) {
+//			sb.append("[path with last = ").append(path.getLastSegment()).append("] ");
+//		}
+//		return sb.toString();
+//	}
 }
