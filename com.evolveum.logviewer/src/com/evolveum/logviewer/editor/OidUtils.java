@@ -9,6 +9,7 @@ import org.eclipse.jface.text.IRegion;
 
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.outline.OidInfo;
+import com.evolveum.logviewer.outline.ParsingUtils;
 
 public class OidUtils {
 	
@@ -18,7 +19,7 @@ public class OidUtils {
 			while (lineNumber >= 0) {
 				IRegion lineReg = document.getLineInformation(lineNumber);
 				String line = document.get(lineReg.getOffset(), lineReg.getLength());
-				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || MyContentOutlinePage.isLogEntryStart(line)) {
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
 					return null;
 				}
 				if (line.startsWith("%"+oid)) {
@@ -44,7 +45,7 @@ public class OidUtils {
 			while (lineNumber >= 0) {
 				IRegion lineReg = document.getLineInformation(lineNumber);
 				String line = document.get(lineReg.getOffset(), lineReg.getLength());
-				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || MyContentOutlinePage.isLogEntryStart(line)) {
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
 					return rv;
 				}
 				if (line.startsWith("%")) {

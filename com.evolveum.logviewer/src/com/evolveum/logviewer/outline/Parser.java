@@ -56,12 +56,14 @@ public class Parser {
 	}
 
 	public void onContextDumpStart(int lineNumber, String line, IRegion region) throws BadLocationException {
-		currentContextDump = new ContextDumpItem(region, lineNumber);
+		currentContextDump = new ContextDumpItem(region, lineNumber, line, document, lastContextDump);
 		
 		String line2 = getLine(lineNumber+1);
 		currentContextDump.parseWaveInfo(line2);
 		currentContextDump.labelCore = line.substring(5);
 		currentContextDump.labelSuffix = suffix(document, lineNumber);
+		
+		lastContextDump = currentContextDump;
 	}
 	
 	private String getLine(int number) throws BadLocationException {
@@ -86,10 +88,19 @@ public class Parser {
 
 	public void onMappingStart(int lineNumber, String line, IRegion region) throws BadLocationException {
 		String label = line.substring(5) + suffix(document, lineNumber);
-		TreeNode node = new TreeNode(label, region);		
-		node.addChildren(scriptsAndExpressions);
+		mappingsAndExecutions.add(new MappingItem(region, lineNumber, document, getPreviousMapping(), label, scriptsAndExpressions));
 		scriptsAndExpressions.clear();
-		mappingsAndExecutions.add(new MappingItem(region, lineNumber, node));
+	}
+	
+	private MappingItem getPreviousMapping() {
+		int i = mappingsAndExecutions.size()-1;
+		while (i >= 0) {
+			if (mappingsAndExecutions.get(i) instanceof MappingItem) {
+				return (MappingItem) mappingsAndExecutions.get(i);
+			}
+			i--;
+		}
+		return null;
 	}
 	
 	public void onGoingToExecute(int lineNumber, String line, IRegion region) throws BadLocationException {
@@ -177,7 +188,7 @@ public class Parser {
 	}
 
 	private void processFolding(int lineNumber, String line) throws BadLocationException {
-		if (MyContentOutlinePage.isLogEntryStart(line)) {
+		if (ParsingUtils.isLogEntryStart(line)) {
 			processLogEntryFolding(lineNumber, line);
 		} else {
 			processIndentBasedFolding(lineNumber, line);
@@ -188,7 +199,7 @@ public class Parser {
 		int endLine = lineNumber + 1;
 		while (endLine < numberOfLines - 1) {
 			String s = getLine(endLine);
-			if (MyContentOutlinePage.isLogEntryStart(s)) {
+			if (ParsingUtils.isLogEntryStart(s)) {
 				break;
 			}
 			endLine++;

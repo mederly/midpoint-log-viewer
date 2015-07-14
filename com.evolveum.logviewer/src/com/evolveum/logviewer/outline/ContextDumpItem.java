@@ -3,6 +3,7 @@ package com.evolveum.logviewer.outline;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
 public class ContextDumpItem extends DocumentItem {
@@ -12,9 +13,11 @@ public class ContextDumpItem extends DocumentItem {
 	String execWave, projWave;
 	String labelCore;
 	String labelSuffix;
+	ContextDumpItem previousContextDump;
 	
-	public ContextDumpItem(IRegion region, int startLine) {
-		super(region, startLine);
+	public ContextDumpItem(IRegion region, int startLine, String line, IDocument document, ContextDumpItem previousContextDump) {
+		super(region, startLine, document);
+		this.previousContextDump = previousContextDump;
 	}
 
 	public TreeNode createTreeNode(Parser parser) {
@@ -48,10 +51,34 @@ public class ContextDumpItem extends DocumentItem {
 				//(executions > 0 ? ", EXEC: " + executions : "") +
 				(executions > 0 ? " # " : " - ") + 
 				labelCore + labelSuffix;
+
+		ContextDumpItem first = getFirstDump();
+		ContextDumpItem previous = previousContextDump;
+		if (date != null && (previous != null || first != null)) {
+			label += " [delta/sum: " + getDelta(previous) + "/" + getDelta(first) + " ms]";
+		}
 		
 		treeNode = new TreeNode(label, region);
 		treeNode.addChildren(children);
 		return treeNode;
+	}
+
+	private String getDelta(ContextDumpItem reference) {
+		if (reference == null || reference.date == null) {
+			return "-";
+		}
+		return String.valueOf(date.getTime() - reference.date.getTime());
+	}
+
+	private ContextDumpItem getFirstDump() {
+		if (previousContextDump == null) {
+			return null;
+		}
+		ContextDumpItem last = previousContextDump;
+		while (last.previousContextDump != null) {
+			last = last.previousContextDump;
+		}
+		return last;
 	}
 
 	public void addProjectionContextTreeNode(TreeNode node) {

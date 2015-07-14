@@ -76,7 +76,7 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 				}
 				
 				parser.onAnyLine(lineNumber, line, region);
-				if (isLogEntryStart(line)) {
+				if (ParsingUtils.isLogEntryStart(line)) {
 					parser.onLogEntryLine(lineNumber, line, region);
 				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK")) {
 					parser.onContextDumpStart(lineNumber, line, region);
@@ -112,11 +112,6 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 
 	private String getLine(IDocument document, IRegion region) throws BadLocationException {
 		return document.get(region.getOffset(), region.getLength());
-	}
-
-	public static boolean isLogEntryStart(String line) {
-		// TEMPORARY!!!
-		return line.startsWith("201");
 	}
 
 	@Override
