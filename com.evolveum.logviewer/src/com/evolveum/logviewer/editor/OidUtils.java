@@ -96,4 +96,35 @@ public class OidUtils {
 		}
 
 	}
+	
+	//TODO move
+	public static List<KillInstruction> getAllKillInstructions(IDocument document) {
+		List<KillInstruction> rv = new ArrayList<>();
+		if (document == null) {
+			return rv;
+		}
+		try {
+			int lineNumber = document.getNumberOfLines()-1;
+			while (lineNumber >= 0) {
+				IRegion lineReg = document.getLineInformation(lineNumber);
+				String line = document.get(lineReg.getOffset(), lineReg.getLength());
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
+					return rv;
+				}
+				if (line.startsWith("%kill ")) {
+					KillInstruction instr = KillInstruction.parseFromLine(line);
+					if (instr != null) {
+						rv.add(instr);
+					}
+				}
+				lineNumber--;
+			}
+			Collections.reverse(rv);
+			return rv;
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+			Collections.reverse(rv);
+			return rv;
+		}
+	}
 }
