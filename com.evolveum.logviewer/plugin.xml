@@ -13,5 +13,60 @@
             id="com.evolveum.logviewer.editor.LogViewerEditor">
       </editor>
    </extension>
+   
+   
+   <!-- Custom actions -->
+   
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            description="Apply Evolveum Log Viewer Configuration"
+            id="com.evolveum.logviewer.applyConfiguration"
+            name="Apply Evolveum Log Viewer Configuration">
+      </command>
+    </extension>
+    
+    <extension
+          point="org.eclipse.ui.handlers">
+       <handler
+             class="com.evolveum.logviewer.handlers.ApplyConfigurationHandler"
+             commandId="com.evolveum.logviewer.applyConfiguration">
+			<activeWhen>
+    			<with variable="activeEditorId">
+       				<equals value="com.evolveum.logviewer.editor.LogViewerEditor"/>
+    			</with>
+			</activeWhen>       
+		</handler>
+    </extension>
+    
+    
+    <extension point="org.eclipse.ui.menus">
+        <menuContribution
+            locationURI="popup:#TextEditorContext?after=group.edit">
+             <command
+                   commandId="com.evolveum.logviewer.applyConfiguration"
+                   label="Apply Evolveum Log Viewer Configuration"
+                   style="push"
+                   tooltip="Apply configuration">
+			<visibleWhen checkEnabled="false">
+    			<with variable="activeEditorId">
+       				<equals value="com.evolveum.logviewer.editor.LogViewerEditor"/>
+    			</with>
+            </visibleWhen>
+         </command>
+    	</menuContribution>       
+    </extension>
+      
+    <extension
+          point="org.eclipse.ui.bindings">
+       <key
+             commandId="com.evolveum.logviewer.applyConfiguration"
+             contextId="org.eclipse.ui.contexts.window"
+             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+             sequence="M3+F2">
+       </key>
+    </extension>
+    
+    
 
 </plugin>

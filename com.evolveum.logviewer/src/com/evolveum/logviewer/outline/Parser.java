@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,6 +44,9 @@ public class Parser {
 	
 	boolean hasConfigSection = false;
 	
+	Map<String,ThreadInfo> discoveredThreads = new HashMap<>();
+	List<String> configuredThreads = new ArrayList<String>();
+	
 	public Parser(IDocument document) {
 		this.document = document;
 		this.numberOfLines = document.getNumberOfLines();
@@ -53,6 +58,30 @@ public class Parser {
 			nodes.add(currentContextDump.createTreeNode(this));
 			currentContextDump = null;
 		}
+		
+		registerThread(line);
+	}
+
+	private void registerThread(String line) {
+		int firstLeftBracket = line.indexOf('[');
+		if (firstLeftBracket < 0) {
+			return;
+		}
+		int secondLeftBracket = line.indexOf('[', firstLeftBracket+1);
+		if (secondLeftBracket < 0) {
+			return;
+		}
+		int secondRightBraket = line.indexOf(']', secondLeftBracket+1);
+		if (secondRightBraket < 0) {
+			return;
+		}
+		String threadName = line.substring(secondLeftBracket+1, secondRightBraket);
+		ThreadInfo info = discoveredThreads.get(threadName);
+		if (info == null) {
+			info = new ThreadInfo(threadName);
+			discoveredThreads.put(threadName, info);
+		}
+		info.records++;
 	}
 
 	public void onContextDumpStart(int lineNumber, String line, IRegion region) throws BadLocationException {
@@ -254,6 +283,32 @@ public class Parser {
 			sb.append(MyContentOutlinePage.CONFIG_MARKER).append("\n\n");
 		}
 		
+		boolean newOidInfos = appendOidInfos(sb);
+		boolean newThreads = appendThreads(sb);
+
+		if (newOidInfos || newThreads) {
+			String s = sb.toString();
+			document.set(document.get() + "\n" + s);
+		}
+		
+	}
+	
+	private boolean appendThreads(StringBuilder sb) {
+		boolean anyNewThreads = false;
+		for (ThreadInfo threadInfo : discoveredThreads.values()) {
+			if (!configuredThreads.contains(threadInfo.name)) {
+				if (!anyNewThreads) {
+					sb.append("\n");
+				}
+				sb.append("%thread ");
+				sb.append(String.format("%-50s# %7d records\n", threadInfo.name, threadInfo.records));
+				anyNewThreads = true;
+			}
+		}
+		return anyNewThreads;
+	}
+
+	private boolean appendOidInfos(StringBuilder sb) {
 		// preserve only new entries
 		List<OidInfo> reallyNewOidInfoList = new ArrayList<>();
 		
@@ -272,7 +327,7 @@ public class Parser {
 		}
 		
 		if (reallyNewOidInfoList.isEmpty()) {
-			return;
+			return false;
 		}
 		
 		Collections.sort(reallyNewOidInfoList, new Comparator<OidInfo>() {
@@ -285,11 +340,10 @@ public class Parser {
 		});
 		
 		for (OidInfo oidInfo : reallyNewOidInfoList) {
-			sb.append('%').append(oidInfo.oid).append(" : ").append(oidInfo.color).append(" : ").append(oidInfo.type).append(" ").append(oidInfo.names);
+			sb.append("%oid ").append(oidInfo.oid).append(" : ").append(oidInfo.color).append(" : ").append(oidInfo.type).append(" ").append(oidInfo.names);
 			sb.append("\n");
 		}
-		String s = sb.toString();
-		document.set(document.get() + "\n" + s);
+		return true;
 	}
 
 	public void onConfigLine(int lineNumber, String line, IRegion region) {
@@ -298,11 +352,19 @@ public class Parser {
 		if (line.isEmpty()) {
 			return;
 		}
-		if (line.startsWith("%")) {
+		if (line.startsWith("%oid ")) {
 			OidInfo parsed = OidInfo.parseFromLine(line);
 			if (parsed != null) {
 				configuredOidInfos.add(parsed);
 			}
+		}
+		if (line.startsWith("%thread ")) {
+			String body = line.substring(8);
+			int lastHash = body.lastIndexOf('#');
+			if (lastHash > 0) {
+				body = body.substring(0, lastHash);
+			}
+			configuredThreads.add(body.trim());
 		}
 	}
 	

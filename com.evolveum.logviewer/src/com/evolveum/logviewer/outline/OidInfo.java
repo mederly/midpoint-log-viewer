@@ -49,13 +49,13 @@ public class OidInfo {
 		}
 	}
 
-	// %cdbc3398-4913-4691-9d07-547b30930070 : green : user [msadovskis]
+	// %oid cdbc3398-4913-4691-9d07-547b30930070 : green : user [msadovskis]
 	public static OidInfo parseFromLine(String line) {
-		if (!line.startsWith("%") || line.length() < 37) {
+		if (!line.startsWith("%oid ") || line.length() < 41) {
 			return null;
 		}
 		
-		String oid = line.substring(1, 37);
+		String oid = line.substring(5, 41);
 		
 		int colon1 = line.indexOf(':');
 		if (colon1 < 0) {

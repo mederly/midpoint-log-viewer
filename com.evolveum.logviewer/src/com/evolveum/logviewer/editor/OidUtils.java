@@ -1,6 +1,7 @@
 package com.evolveum.logviewer.editor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.jface.text.BadLocationException;
@@ -22,7 +23,7 @@ public class OidUtils {
 				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
 					return null;
 				}
-				if (line.startsWith("%"+oid)) {
+				if (line.startsWith("%oid "+oid)) {
 					return OidInfo.parseFromLine(line);
 				}
 				lineNumber--;
@@ -48,7 +49,7 @@ public class OidUtils {
 				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
 					return rv;
 				}
-				if (line.startsWith("%")) {
+				if (line.startsWith("%oid ")) {
 					OidInfo oidInfo = OidInfo.parseFromLine(line);
 					if (oidInfo != null) {
 						rv.add(oidInfo);
@@ -64,5 +65,35 @@ public class OidUtils {
 
 	}
 
+	// TODO move
+	public static List<FoldingInstruction> getAllFoldingInstructions(IDocument document) {
+		List<FoldingInstruction> rv = new ArrayList<>();
+		if (document == null) {
+			return rv;
+		}
+		try {
+			int lineNumber = document.getNumberOfLines()-1;
+			while (lineNumber >= 0) {
+				IRegion lineReg = document.getLineInformation(lineNumber);
+				String line = document.get(lineReg.getOffset(), lineReg.getLength());
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
+					return rv;
+				}
+				if (line.startsWith("%collapse ") || line.startsWith("%expand ")) {
+					FoldingInstruction instr = FoldingInstruction.parseFromLine(line);
+					if (instr != null) {
+						rv.add(instr);
+					}
+				}
+				lineNumber--;
+			}
+			Collections.reverse(rv);
+			return rv;
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+			Collections.reverse(rv);
+			return rv;
+		}
 
+	}
 }
