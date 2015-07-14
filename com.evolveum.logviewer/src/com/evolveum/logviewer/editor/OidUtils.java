@@ -127,4 +127,33 @@ public class OidUtils {
 			return rv;
 		}
 	}
+	
+	public static EditorConfiguration getConfiguration(IDocument document) {
+		EditorConfiguration config = new EditorConfiguration(); 
+		if (document == null) {
+			return config;
+		}
+		try {
+			int lineNumber = document.getNumberOfLines()-1;
+			while (lineNumber >= 0) {
+				IRegion lineReg = document.getLineInformation(lineNumber);
+				String line = document.get(lineReg.getOffset(), lineReg.getLength());
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
+					return config;
+				}
+				if (line.startsWith("%skip-thread-processing")) {
+					config.skipThreadProcessing = true;
+				} else if (line.startsWith("%no-component-names")) {
+					config.noComponentNames = true;
+				}
+				lineNumber--;
+			}
+			return config;
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+			return config;
+		}
+
+	}
+
 }

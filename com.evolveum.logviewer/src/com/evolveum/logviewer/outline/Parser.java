@@ -17,10 +17,15 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.Position;
 
+import com.evolveum.logviewer.editor.EditorConfiguration;
+import com.evolveum.logviewer.editor.OidUtils;
+
 public class Parser {
 
 	int numberOfLines;
 	IDocument document;
+	
+	EditorConfiguration configuration;
 	
 	List<TreeNode> nodes = new ArrayList<>();
 
@@ -50,6 +55,7 @@ public class Parser {
 	public Parser(IDocument document) {
 		this.document = document;
 		this.numberOfLines = document.getNumberOfLines();
+		this.configuration = OidUtils.getConfiguration(document);
 	}
 
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
@@ -59,7 +65,9 @@ public class Parser {
 			currentContextDump = null;
 		}
 		
-		registerThread(line);
+		if (!configuration.skipThreadProcessing) {
+			registerThread(line);
+		}
 	}
 
 	private void registerThread(String line) {
@@ -67,15 +75,21 @@ public class Parser {
 		if (firstLeftBracket < 0) {
 			return;
 		}
-		int secondLeftBracket = line.indexOf('[', firstLeftBracket+1);
-		if (secondLeftBracket < 0) {
+		int threadLeftBracket;
+		if (configuration.noComponentNames) {
+			threadLeftBracket = firstLeftBracket;
+		} else {
+			threadLeftBracket = line.indexOf('[', firstLeftBracket+1);
+			if (threadLeftBracket < 0) {
+				return;
+			}
+		}
+		
+		int threadRightBraket = line.indexOf(']', threadLeftBracket+1);
+		if (threadRightBraket < 0) {
 			return;
 		}
-		int secondRightBraket = line.indexOf(']', secondLeftBracket+1);
-		if (secondRightBraket < 0) {
-			return;
-		}
-		String threadName = line.substring(secondLeftBracket+1, secondRightBraket);
+		String threadName = line.substring(threadLeftBracket+1, threadRightBraket);
 		ThreadInfo info = discoveredThreads.get(threadName);
 		if (info == null) {
 			info = new ThreadInfo(threadName);
@@ -283,10 +297,14 @@ public class Parser {
 			sb.append(MyContentOutlinePage.CONFIG_MARKER).append("\n\n");
 		}
 		
-		boolean newOidInfos = appendOidInfos(sb);
-		boolean newThreads = appendThreads(sb);
+		boolean change = appendOidInfos(sb);
+		if (!configuration.skipThreadProcessing) {
+			if (appendThreads(sb)) {
+				change = true;
+			}
+		}
 
-		if (newOidInfos || newThreads) {
+		if (change) {
 			String s = sb.toString();
 			document.set(document.get() + "\n" + s);
 		}
