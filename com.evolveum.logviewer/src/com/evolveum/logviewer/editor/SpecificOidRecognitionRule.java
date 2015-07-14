@@ -23,6 +23,7 @@ public class SpecificOidRecognitionRule implements IPredicateRule {
 		systemColors.put("white", SWT.COLOR_WHITE);
 		systemColors.put("black", SWT.COLOR_BLACK);
 		systemColors.put("red", SWT.COLOR_RED);
+		systemColors.put("dark-red", SWT.COLOR_DARK_RED);
 		systemColors.put("green", SWT.COLOR_GREEN);
 		systemColors.put("dark-green", SWT.COLOR_DARK_GREEN);
 		systemColors.put("yellow", SWT.COLOR_YELLOW);
