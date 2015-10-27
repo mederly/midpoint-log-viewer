@@ -78,8 +78,14 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 				parser.onAnyLine(lineNumber, line, region);
 				if (ParsingUtils.isLogEntryStart(line)) {
 					parser.onLogEntryLine(lineNumber, line, region);
-				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK")) {
-					parser.onContextDumpStart(lineNumber, line, region);
+				} 
+				
+				if (line.contains("---[ SYNCHRONIZATION")) {
+					line = line.substring(line.indexOf("---["));
+					parser.onContextDumpStart(lineNumber, line, region, false); 
+				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK") ||
+						line.startsWith("---[ preview")) {
+					parser.onContextDumpStart(lineNumber, line, region, true);
 				} else if (line.startsWith("---[ SCRIPT")) {
 					parser.onScriptStart(lineNumber, line, region);
 				} else if (line.startsWith("---[ EXPRESSION")) {

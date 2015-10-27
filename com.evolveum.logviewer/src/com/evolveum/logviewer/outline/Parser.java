@@ -52,10 +52,13 @@ public class Parser {
 	Map<String,ThreadInfo> discoveredThreads = new HashMap<>();
 	List<String> configuredThreads = new ArrayList<String>();
 	
+	Boolean componentNames;				// whether expect component names (e.g. [PROVISIONING]) in log lines
+	
 	public Parser(IDocument document) {
 		this.document = document;
 		this.numberOfLines = document.getNumberOfLines();
 		this.configuration = OidUtils.getConfiguration(document);
+		this.componentNames = configuration.componentNames;
 	}
 
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
@@ -75,8 +78,13 @@ public class Parser {
 		if (firstLeftBracket < 0) {
 			return;
 		}
+		
+		if (componentNames == null) {
+			componentNames = line.contains("] [");
+		}
+		
 		int threadLeftBracket;
-		if (configuration.noComponentNames) {
+		if (!componentNames) {
 			threadLeftBracket = firstLeftBracket;
 		} else {
 			threadLeftBracket = line.indexOf('[', firstLeftBracket+1);
@@ -98,13 +106,14 @@ public class Parser {
 		info.records++;
 	}
 
-	public void onContextDumpStart(int lineNumber, String line, IRegion region) throws BadLocationException {
+	// newLine is true, if "---[" starts on a separate (new) line
+	public void onContextDumpStart(int lineNumber, String line, IRegion region, boolean newLine) throws BadLocationException {
 		currentContextDump = new ContextDumpItem(region, lineNumber, line, document, lastContextDump);
 		
 		String line2 = getLine(lineNumber+1);
 		currentContextDump.parseWaveInfo(line2);
 		currentContextDump.labelCore = line.substring(5);
-		currentContextDump.labelSuffix = suffix(document, lineNumber);
+		currentContextDump.labelSuffix = suffix(document, lineNumber, newLine);
 		
 		lastContextDump = currentContextDump;
 	}
@@ -124,13 +133,13 @@ public class Parser {
 	}
 
 	private void onScriptOrExpression(int lineNumber, String line, IRegion region) throws BadLocationException {
-		String label = line.substring(5) + suffix(document, lineNumber);
+		String label = line.substring(5) + suffix(document, lineNumber, true);
 		TreeNode node = new TreeNode(label, region);
 		scriptsAndExpressions.add(node);
 	}
 
 	public void onMappingStart(int lineNumber, String line, IRegion region) throws BadLocationException {
-		String label = line.substring(5) + suffix(document, lineNumber);
+		String label = line.substring(5) + suffix(document, lineNumber, true);
 		mappingsAndExecutions.add(new MappingItem(region, lineNumber, document, getPreviousMapping(), label, scriptsAndExpressions));
 		scriptsAndExpressions.clear();
 	}
@@ -147,7 +156,7 @@ public class Parser {
 	}
 	
 	public void onGoingToExecute(int lineNumber, String line, IRegion region) throws BadLocationException {
-		String label = "--> " + line.substring(5) + suffix(document, lineNumber);
+		String label = "--> " + line.substring(5) + suffix(document, lineNumber, true);
 		TreeNode node = new TreeNode(label, region);		
 		node.addChildren(scriptsAndExpressions);
 		scriptsAndExpressions.clear();		
@@ -156,7 +165,7 @@ public class Parser {
 	
 	public void onClockworkSummary(int lineNumber, String line, IRegion region) throws BadLocationException {
 		flushMappingsAndScriptsAndExpressions();
-		TreeNode node = new TreeNode(line + suffix(document, lineNumber), region);
+		TreeNode node = new TreeNode(line + suffix(document, lineNumber, true), region);
 		nodes.add(node);
 		currentContextDump = null;
 	}
@@ -174,13 +183,14 @@ public class Parser {
 		scriptsAndExpressions.clear();
 	}
 
-	private String suffix(IDocument document, int lineNumber) throws BadLocationException {
+	private String suffix(IDocument document, int lineNumber, boolean newLine) throws BadLocationException {
 		String date = "?";
-		if (lineNumber > 0) {
-			IRegion previousRegion = document.getLineInformation(lineNumber-1);
-			String previousLine = document.get(previousRegion.getOffset(), previousRegion.getLength());
-			if (previousLine.length() >= 23) {
-				date = previousLine.substring(0, 23); 
+		int lineWithDate = newLine ? lineNumber-1 : lineNumber;
+		if (lineWithDate >= 0) {
+			IRegion dateRegion = document.getLineInformation(lineWithDate);
+			String dateLine = document.get(dateRegion.getOffset(), dateRegion.getLength());
+			if (dateLine.length() >= 23) {
+				date = dateLine.substring(0, 23); 
 			}
 		}
 		return " " + date + " (#" + lineNumber + ")";

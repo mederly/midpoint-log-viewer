@@ -144,7 +144,9 @@ public class OidUtils {
 				if (line.startsWith("%skip-thread-processing")) {
 					config.skipThreadProcessing = true;
 				} else if (line.startsWith("%no-component-names")) {
-					config.noComponentNames = true;
+					config.componentNames = false;
+				} else if (line.startsWith("%component-names")) {
+					config.componentNames = true;
 				}
 				lineNumber--;
 			}
