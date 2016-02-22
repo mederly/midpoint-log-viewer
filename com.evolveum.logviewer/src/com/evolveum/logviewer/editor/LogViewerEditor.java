@@ -18,8 +18,12 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 
-import com.evolveum.logviewer.editor.FoldingInstruction.Type;
-import com.evolveum.logviewer.editor.FoldingInstruction.When;
+import com.evolveum.logviewer.config.FoldingInstruction;
+import com.evolveum.logviewer.config.KillInstruction;
+import com.evolveum.logviewer.actions.ActionExecutor;
+import com.evolveum.logviewer.config.ConfigurationParser;
+import com.evolveum.logviewer.config.FoldingInstruction.Type;
+import com.evolveum.logviewer.config.FoldingInstruction.When;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.outline.ParsingUtils;
 
@@ -115,130 +119,9 @@ public class LogViewerEditor extends TextEditor {
 		((MyConfiguration) getSourceViewerConfiguration()).update(sourceViewer);
 		sourceViewer.invalidateTextPresentation();
 		
-		applyKillInstructions(sourceViewer.getDocument());
-		
-		if (sourceViewer instanceof ProjectionViewer) {		// always should be
-			ProjectionViewer projectionViewer = (ProjectionViewer) sourceViewer;
-			ProjectionAnnotationModel pam = projectionViewer.getProjectionAnnotationModel();
-			
-			IDocument document = sourceViewer.getDocument();
-			List<FoldingInstruction> instructions = OidUtils.getAllFoldingInstructions(document);
-			applyFoldingInstructions(instructions, document, pam);
-		} else {
-			System.out.println("Unknown sourceViewer: " + sourceViewer);
-		}
+		ActionExecutor.executeActions(sourceViewer);
 		
 	}
-
-	private void applyKillInstructions(IDocument document) {
-		List<KillInstruction> instructions = OidUtils.getAllKillInstructions(document);
-		System.out.println("Applying " + instructions.size() + " killing instructions.");
-		if (instructions.isEmpty()) {
-			return;
-		}
-		int killed = 0;
-		try {
-			int lineNumber = 0;
-			for (;;) {
-				
-				int lines = document.getNumberOfLines();
-				if (lineNumber >= lines) {
-					break;
-				}
-				
-				String line;
-				for (;;) {
-					line = DocumentUtils.getLine(document, lineNumber);
-					if (ParsingUtils.isLogEntryStart(line)) {
-						break;
-					}
-					lineNumber++;
-					if (lineNumber >= lines) {
-						return;						// next log entry was not found
-					}
-				}
-				
-				int logStartLineNumber = lineNumber;
-				String logStartLine = line;
-				
-				StringBuilder logEntry = new StringBuilder();
-				for (;;) {
-					logEntry.append(line).append("\n");
-					lineNumber++;
-					if (lineNumber >= lines) {
-						break;
-					}
-					line = DocumentUtils.getLine(document, lineNumber);
-					if (ParsingUtils.isLogEntryStart(line)) {
-						break;
-					}
-				}
-				
-				// lineNumber is at next log entry
-				// logEntry contains whole entry
-				
-				for (KillInstruction instr : instructions) {
-					if (instr.appliesTo(logStartLine, logEntry.toString())) {
-						int start = document.getLineOffset(logStartLineNumber);
-						int end;
-						if (lineNumber >= lines) {
-							end = document.getLength();
-						} else {
-							end = document.getLineOffset(lineNumber);
-						}
-						System.out.println("Killing lines #" + (logStartLineNumber+1) + " to #" + (lineNumber+1));
-						document.replace(start, end-start, "");
-						killed++;
-						
-						lineNumber = logStartLineNumber;			// restart at deleted line
-						break;										// skipping other instructions
-					}
-				}
-			}
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
-		System.out.println("Killed " + killed + " line(s)");
-		
-	}
-
-	private void applyFoldingInstructions(List<FoldingInstruction> instructions, IDocument document, ProjectionAnnotationModel pam) {
-		try {
-			for (FoldingInstruction instr : instructions) {
-				int lines = document.getNumberOfLines();
-				for (int lineNumber = 0; lineNumber < lines; lineNumber++) {
-					IRegion region = document.getLineInformation(lineNumber);
-					String line = document.get(region.getOffset(), region.getLength());
-					if (line.contains(MyContentOutlinePage.CONFIG_MARKER)) {
-						break;
-					}
-					if (instr.when == When.CONTAINING && line.contains(instr.string)
-							|| (instr.when == When.NOT_CONTAINING && !line.contains(instr.string))) {
-						Iterator iter = pam.getAnnotationIterator(region.getOffset(), region.getLength(), false, true);
-						if (!iter.hasNext()) {
-//							System.out.println("Warn: no annotation for line " + (lineNumber+1)
-//									+ " was found, skipping folding instruction");
-							continue;
-						}
-						Object o = iter.next();
-						if (o instanceof Annotation) {
-							if (instr.type == Type.COLLAPSE) {
-								pam.collapse((Annotation) o);
-							} else {
-								pam.expand((Annotation) o);
-							}
-						} else {
-							System.out.println("Warn: Unknown annotation for line " + lineNumber + ": " + o);
-						}
-					}
-				}
-			}
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	
 	
 }
 

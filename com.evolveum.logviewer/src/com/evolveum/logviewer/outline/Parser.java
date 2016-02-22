@@ -3,27 +3,32 @@ package com.evolveum.logviewer.outline;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.Position;
 
-import com.evolveum.logviewer.editor.EditorConfiguration;
-import com.evolveum.logviewer.editor.OidUtils;
+import com.evolveum.logviewer.config.EditorConfiguration;
+import com.evolveum.logviewer.config.ErrorMarkingInstruction;
+import com.evolveum.logviewer.config.ConfigurationParser;
+import com.evolveum.logviewer.config.ConfigurationTemplateHelp;
 
 public class Parser {
 
 	int numberOfLines;
 	IDocument document;
+	IResource resource;
 	
 	EditorConfiguration configuration;
 	
@@ -54,13 +59,16 @@ public class Parser {
 	
 	Boolean componentNames;				// whether expect component names (e.g. [PROVISIONING]) in log lines
 	
-	public Parser(IDocument document) {
+	public Parser(IDocument document, IResource resource) {
 		this.document = document;
+		this.resource = resource;
 		this.numberOfLines = document.getNumberOfLines();
-		this.configuration = OidUtils.getConfiguration(document);
+		this.configuration = ConfigurationParser.getConfiguration(document);
 		this.componentNames = configuration.componentNames;
 	}
 
+	private Long lastTimestamp = null;
+	
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
 		// This may be a line that closes a context dump.
 		if (currentContextDump != null) {
@@ -70,6 +78,26 @@ public class Parser {
 		
 		if (!configuration.skipThreadProcessing) {
 			registerThread(line);
+		}
+		
+		if (line.contains("] ERROR (")) {
+			onErrorLine(lineNumber, line, region);
+		}
+		
+		Date date = ParsingUtils.parseDate(line);
+		if (date != null) {
+			long currentTimestamp = date.getTime();
+			if (lastTimestamp != null) {
+				long delta = currentTimestamp - lastTimestamp;
+				if (configuration.getErrorIfDelay() != null && delta >= configuration.getErrorIfDelay()) {
+					addMarker(lineNumber, "Delay (" + delta + " msec) greater than or equal configured threshold of " + configuration.getErrorIfDelay() + " msec", IMarker.SEVERITY_ERROR);
+				} else if (configuration.getWarningIfDelay() != null && delta >= configuration.getWarningIfDelay()) {
+					addMarker(lineNumber, "Delay (" + delta + " msec) greater than or equal configured threshold of " + configuration.getWarningIfDelay() + " msec", IMarker.SEVERITY_WARNING);
+				} else if (configuration.getInfoIfDelay() != null && delta >= configuration.getInfoIfDelay()) {
+					addMarker(lineNumber, "Delay (" + delta + " msec) greater than or equal configured threshold of " + configuration.getInfoIfDelay() + " msec", IMarker.SEVERITY_INFO);
+				}
+			}
+			lastTimestamp = currentTimestamp;
 		}
 	}
 
@@ -243,11 +271,49 @@ public class Parser {
 	private void processFolding(int lineNumber, String line) throws BadLocationException {
 		if (ParsingUtils.isLogEntryStart(line)) {
 			processLogEntryFolding(lineNumber, line);
+			processEntryExitFolding(lineNumber, line);
 		} else {
 			processIndentBasedFolding(lineNumber, line);
 		}
 	}
 	
+	private Map<Integer,Integer> openEntryPoints = new HashMap<>();
+	
+	private void processEntryExitFolding(int lineNumber, String line) throws BadLocationException {
+		final String ENTRY_TEXT = "(PROFILING): #### Entry: ";
+		final String EXIT_TEXT = "(PROFILING): ##### Exit: ";
+		Integer entryNumber = getNumber(line, ENTRY_TEXT);
+		if (entryNumber != null) {
+			openEntryPoints.put(entryNumber, lineNumber);
+			return;
+		}
+		Integer exitNumber = getNumber(line, EXIT_TEXT);
+		if (exitNumber != null) {
+			Integer startLine = openEntryPoints.get(exitNumber);
+			if (startLine == null) {
+				System.err.println("Warning: exit without entry: " + line);
+			} else {
+				//System.out.println("Adding folding region for entry/exit " + exitNumber + ": " + startLine + "->" + lineNumber);
+				addFoldingRegion(startLine, lineNumber);
+				openEntryPoints.remove(exitNumber);
+			}
+		}
+	}
+
+	private Integer getNumber(String line, String text) {
+		int i = line.indexOf(text);
+		if (i < 0) {
+			return null;
+		}
+		i += text.length();
+		int j = line.indexOf(' ', i);
+		if (j < 0) {
+			System.err.println("Warning: strange entry/exit line: " + line);
+			return null;
+		}
+		return Integer.valueOf(line.substring(i, j));
+	}
+
 	private void processLogEntryFolding(int lineNumber, String line) throws BadLocationException {
 		int endLine = lineNumber + 1;
 		while (endLine < numberOfLines - 1) {
@@ -312,6 +378,10 @@ public class Parser {
 			if (appendThreads(sb)) {
 				change = true;
 			}
+		}
+		
+		if (!hasConfigSection) {
+			ConfigurationTemplateHelp.writeTo(sb);
 		}
 
 		if (change) {
@@ -393,6 +463,34 @@ public class Parser {
 				body = body.substring(0, lastHash);
 			}
 			configuredThreads.add(body.trim());
+		}
+	}
+
+	private void onErrorLine(int lineNumber, String line, IRegion region) {
+		if (resource == null) {
+			return;		// no resource, no markers
+		}
+		boolean enabled = true;
+		for (ErrorMarkingInstruction errorInstruction : configuration.getErrorInstructions()) {
+			if (errorInstruction.matches(line)) {
+				enabled = errorInstruction.isEnable();
+				break;
+			}
+		}
+		if (enabled) {
+			addMarker(lineNumber, line, IMarker.SEVERITY_ERROR);
+		}
+	}
+
+	private void addMarker(int lineNumber, String text, int severity) {
+		try {
+			IMarker m = resource.createMarker(IMarker.PROBLEM);
+			m.setAttribute(IMarker.LINE_NUMBER, lineNumber+1);
+			m.setAttribute(IMarker.MESSAGE, text);
+			m.setAttribute(IMarker.PRIORITY, IMarker.PRIORITY_HIGH);
+			m.setAttribute(IMarker.SEVERITY, severity);
+		} catch (CoreException e) {
+			e.printStackTrace();
 		}
 	}
 	

@@ -14,6 +14,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Display;
 
+import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.outline.OidInfo;
 
 public class SpecificOidRecognitionRule implements IPredicateRule {
@@ -46,7 +47,7 @@ public class SpecificOidRecognitionRule implements IPredicateRule {
 		
 		Display display = Display.getCurrent();
 		
-		List<OidInfo> oidInfoList = OidUtils.getAllOidInfos(document);
+		List<OidInfo> oidInfoList = ConfigurationParser.getAllOidInfos(document);
 		for (OidInfo oidInfo : oidInfoList) {
 			Integer systemColor = systemColors.get(oidInfo.getColor());
 			if (systemColor != null) {

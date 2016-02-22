@@ -1,8 +1,8 @@
 package com.evolveum.logviewer.outline;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
@@ -15,6 +15,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.ide.ResourceUtil;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.views.contentoutline.ContentOutlinePage;
 
@@ -45,7 +46,6 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 	            control.setRedraw(false);
 	            TreeNode[] outlineInput = parseEditorInput();
 	            viewer.setInput(outlineInput);
-	            //viewer.();
 	            control.setRedraw(true);
 	        }
 	    }
@@ -58,19 +58,28 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 		IDocument document = editor.getDocumentProvider().getDocument(editorInput);
 		
 		int lines = document.getNumberOfLines();
-		System.out.println("Lines: " + lines);
+		System.out.println("************************* Starting parsing; lines: " + lines + " *************************");
 		long start = System.currentTimeMillis();
 
-		Parser parser = new Parser(document);
-		
-		boolean inConfigSection = false;
+		IResource resource = ResourceUtil.getResource(editorInput);
+		try {
+			if (resource != null) {
+				resource.deleteMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+			} else {
+				System.err.println("Resource is null.");
+			}
+		} catch (CoreException e1) {
+			e1.printStackTrace();
+		}   
+
+		Parser parser = new Parser(document, resource);
 		
 		for (int lineNumber = 0; lineNumber < lines; lineNumber++) {
 			try {
 				IRegion region = document.getLineInformation(lineNumber);
 				String line = getLine(document, region);
-				if (line.equals(CONFIG_MARKER) || inConfigSection) {
-					inConfigSection = true;
+				
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || parser.hasConfigSection) {
 					parser.onConfigLine(lineNumber, line, region);
 					continue;
 				}
@@ -78,7 +87,7 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 				parser.onAnyLine(lineNumber, line, region);
 				if (ParsingUtils.isLogEntryStart(line)) {
 					parser.onLogEntryLine(lineNumber, line, region);
-				} 
+				}
 				
 				if (line.contains("---[ SYNCHRONIZATION")) {
 					line = line.substring(line.indexOf("---["));
@@ -114,6 +123,34 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 			System.err.println("Couldn't dump info: " + e);
 		}
 		return parser.nodes.toArray(new TreeNode[0]);
+	}
+
+	private int parseConfiguration(IDocument document, Parser parser) {
+		int lines = document.getNumberOfLines();
+		int configMarkerAtLine = -1;
+
+		try {
+			for (int lineNumber = lines-1; lineNumber >= 0; lineNumber--) {
+				if (fetchLine(document, lineNumber).equals(CONFIG_MARKER)) {
+					System.out.println("Found config section starting at line " + lineNumber);
+					configMarkerAtLine = lineNumber;
+					for (int i = lineNumber+1; i < lines; i++) {
+						IRegion region = document.getLineInformation(i);
+						String line = getLine(document, region);
+						parser.onConfigLine(i, line, region);
+					}
+				}
+			}
+		} catch (BadLocationException e) {
+			System.err.println("Couldn't find or parse config section" + e);
+			e.printStackTrace();
+		}
+		return configMarkerAtLine;
+	}
+
+	private String fetchLine(IDocument document, int lineNumber) throws BadLocationException {
+		IRegion region = document.getLineInformation(lineNumber);
+		return getLine(document, region);
 	}
 
 	private String getLine(IDocument document, IRegion region) throws BadLocationException {

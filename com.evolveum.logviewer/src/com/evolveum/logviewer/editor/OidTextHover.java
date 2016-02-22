@@ -6,6 +6,7 @@ import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextHover;
 import org.eclipse.jface.text.ITextViewer;
 
+import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.outline.OidInfo;
 
 public class OidTextHover implements ITextHover {
@@ -15,7 +16,7 @@ public class OidTextHover implements ITextHover {
 		try {
 			IDocument doc = textViewer.getDocument();
 			String oid = doc.get(hoverRegion.getOffset(), hoverRegion.getLength());
-			OidInfo oidInfo = OidUtils.findOidInfo(doc, oid);
+			OidInfo oidInfo = ConfigurationParser.findOidInfo(doc, oid);
 			if (oidInfo != null) {
 				return oidInfo.toString();
 			} else {
