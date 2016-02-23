@@ -15,7 +15,7 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.widgets.Display;
 
 import com.evolveum.logviewer.config.ConfigurationParser;
-import com.evolveum.logviewer.outline.OidInfo;
+import com.evolveum.logviewer.config.OidInfo;
 
 public class SpecificOidRecognitionRule implements IPredicateRule {
 

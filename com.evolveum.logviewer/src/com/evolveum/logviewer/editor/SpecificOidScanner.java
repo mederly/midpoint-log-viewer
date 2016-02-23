@@ -12,7 +12,7 @@ import org.eclipse.swt.widgets.Display;
 
 public class SpecificOidScanner extends RuleBasedScanner {
 	
-	public SpecificOidScanner(ColorManager manager, IDocument document) {
+	public SpecificOidScanner(MyColorManager manager, IDocument document) {
 		
 		Display display = Display.getCurrent();
 		Color c = display.getSystemColor(SWT.COLOR_BLACK);

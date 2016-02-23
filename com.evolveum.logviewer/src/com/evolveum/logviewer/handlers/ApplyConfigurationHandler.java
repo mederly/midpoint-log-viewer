@@ -20,8 +20,7 @@ public class ApplyConfigurationHandler extends AbstractHandler {
 			MessageDialog.openError(null, DEFAULT_DIALOG_TITLE, "This action is available only in the Evolveum Log Viewer.");
 		}
 		LogViewerEditor logViewerEditor = (LogViewerEditor) editor;
-		logViewerEditor.applyConfiguration();
-		System.out.println("+++ Configuration applied.");
+		logViewerEditor.applyConfigurationAndActions();
 		return null;
 		
 	}

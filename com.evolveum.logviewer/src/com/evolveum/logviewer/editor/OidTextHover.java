@@ -7,7 +7,7 @@ import org.eclipse.jface.text.ITextHover;
 import org.eclipse.jface.text.ITextViewer;
 
 import com.evolveum.logviewer.config.ConfigurationParser;
-import com.evolveum.logviewer.outline.OidInfo;
+import com.evolveum.logviewer.config.OidInfo;
 
 public class OidTextHover implements ITextHover {
 

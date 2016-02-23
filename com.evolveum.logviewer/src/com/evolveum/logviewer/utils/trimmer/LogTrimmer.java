@@ -10,7 +10,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.evolveum.logviewer.outline.ParsingUtils;
+import com.evolveum.logviewer.parsing.ParsingUtils;
 
 /**
  * Commands from stdin:

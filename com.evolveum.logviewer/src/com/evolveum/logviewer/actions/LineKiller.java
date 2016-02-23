@@ -8,7 +8,7 @@ import org.eclipse.jface.text.IDocument;
 import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.config.KillInstruction;
 import com.evolveum.logviewer.editor.DocumentUtils;
-import com.evolveum.logviewer.outline.ParsingUtils;
+import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class LineKiller {
 

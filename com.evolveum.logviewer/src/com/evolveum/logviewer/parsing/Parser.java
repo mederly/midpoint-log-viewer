@@ -1,4 +1,4 @@
-package com.evolveum.logviewer.outline;
+package com.evolveum.logviewer.parsing;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,38 +21,47 @@ import org.eclipse.jface.text.Position;
 
 import com.evolveum.logviewer.config.EditorConfiguration;
 import com.evolveum.logviewer.config.ErrorMarkingInstruction;
+import com.evolveum.logviewer.config.OidInfo;
+import com.evolveum.logviewer.config.ThreadInfo;
+import com.evolveum.logviewer.outline.MyContentOutlinePage;
+import com.evolveum.logviewer.outline.TreeNode;
 import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.config.ConfigurationTemplateHelp;
 
 public class Parser {
 
-	int numberOfLines;
-	IDocument document;
-	IResource resource;
+	private final int numberOfLines;
+	private final IDocument document;
+	private final IResource resource;
 	
-	EditorConfiguration configuration;
+	private final EditorConfiguration configuration;
 	
-	List<TreeNode> nodes = new ArrayList<>();
+	private final List<TreeNode> nodes = new ArrayList<>();
+	
+	private DocumentItem currentDocumentItem;
 
-	// ContextDump that was lastly created
-	ContextDumpItem lastContextDump = null;
+//	// ContextDump that was lastly created
+//	private ContextDumpItem lastContextDump = null;
+//	
+//	// ContextDump we are currently physically in - the next log line sets this to null
+//	private ContextDumpItem currentContextDump = null;
+//	
+//	// scripts and expressions will be aggregated into following mapping
+//	// there are exceptions, however - like expressions in notifications
+//	private List<DocumentItem> scriptsAndExpressions = new ArrayList<>();
+//	
+//	// mappings and "going to execution" items are aggregated into the following context dump
+//	private List<DocumentItem> mappingsAndExecutions = new ArrayList<>();
 	
-	// ContextDump we are currently physically in - the next log line sets this to null
-	ContextDumpItem currentContextDump = null;
 	
-	// scripts and expressions will be aggregated into following mapping
-	// there are exceptions, however - like expressions in notifications
-	List<TreeNode> scriptsAndExpressions = new ArrayList<>();
 	
-	// mappings and "going to execution" items are aggregated into the following context dump
-	List<DocumentItem> mappingsAndExecutions = new ArrayList<>();
 	
-	List<Position> foldingRegions = new ArrayList<Position>();
+	public List<Position> foldingRegions = new ArrayList<Position>();
 	
 	Map<String,OidInfo> discoveredOidInfos = new HashMap<>();
 	List<OidInfo> configuredOidInfos = new ArrayList<OidInfo>();
 	
-	boolean hasConfigSection = false;
+	public boolean hasConfigSection = false;
 	
 	Map<String,ThreadInfo> discoveredThreads = new HashMap<>();
 	List<String> configuredThreads = new ArrayList<String>();
@@ -65,8 +74,63 @@ public class Parser {
 		this.numberOfLines = document.getNumberOfLines();
 		this.configuration = ConfigurationParser.getConfiguration(document);
 		this.componentNames = configuration.componentNames;
+		this.currentDocumentItem = new GenericDocumentItem(configuration.getRootOutlineInstruction());
 	}
+	
+	public void parse() {
+		for (int lineNumber = 0; lineNumber < numberOfLines; lineNumber++) {
+			try {
+				IRegion region = document.getLineInformation(lineNumber);
+				String line = getLine(document, region);
 
+				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || hasConfigSection) {
+					onConfigLine(lineNumber, line, region);
+					continue;
+				}
+
+				onAnyLine(lineNumber, line, region);
+				if (ParsingUtils.isLogEntryStart(line)) {
+					onLogEntryLine(lineNumber, line, region);
+				}
+				
+				currentDocumentItem.parseLine(lineNumber, line, region);
+
+				if (line.contains("---[ SYNCHRONIZATION")) {
+					line = line.substring(line.indexOf("---["));
+					parser.onContextDumpStart(lineNumber, line, region, false); 
+				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK") ||
+						line.startsWith("---[ preview")) {
+					parser.onContextDumpStart(lineNumber, line, region, true);
+				} else if (line.startsWith("---[ SCRIPT")) {
+					parser.onScriptStart(lineNumber, line, region);
+				} else if (line.startsWith("---[ EXPRESSION")) {
+					parser.onExpressionStart(lineNumber, line, region);					
+				} else if (line.startsWith("---[ MAPPING")) {
+					parser.onMappingStart(lineNumber, line, region);					
+				} else if (line.startsWith("    PROJECTION ShadowType Discr")) {
+					parser.onProjectionContextDumpStart(lineNumber, line, region);
+				} else if (line.startsWith("---[ Going to EXECUTE")) {
+					parser.onGoingToExecute(lineNumber, line, region);		
+				} else if (line.startsWith("###[ CLOCKWORK SUMMARY")) {
+					parser.onClockworkSummary(lineNumber, line, region);
+				} else if (line.startsWith("---[")) {
+					parser.onMappingStart(lineNumber, line, region);		// temporary solution					
+				} 
+			} catch (BadLocationException e) {
+				System.err.println("Couldn't parse line #" + lineNumber + ": " + e);
+			}
+		}
+		System.out.println("### FOLDING REGIONS: " + parser.foldingRegions.size());
+		editor.updateFoldingStructure(parser.foldingRegions);
+		System.out.println("Parsed in " + (System.currentTimeMillis()-start) + " ms");
+		try {
+			parser.dumpInfo();
+		} catch (BadLocationException e) {
+			System.err.println("Couldn't dump info: " + e);
+		}
+		return parser.nodes.toArray(new TreeNode[0]);
+	}
+	
 	private Long lastTimestamp = null;
 	
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
@@ -494,6 +558,8 @@ public class Parser {
 		}
 	}
 	
-
+	private String getLine(IDocument document, IRegion region) throws BadLocationException {
+		return document.get(region.getOffset(), region.getLength());
+	}
 	
 }

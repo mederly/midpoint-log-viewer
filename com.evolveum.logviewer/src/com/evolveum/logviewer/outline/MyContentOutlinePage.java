@@ -20,6 +20,8 @@ import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.views.contentoutline.ContentOutlinePage;
 
 import com.evolveum.logviewer.editor.LogViewerEditor;
+import com.evolveum.logviewer.parsing.Parser;
+import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class MyContentOutlinePage extends ContentOutlinePage {
 	
@@ -44,14 +46,14 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 	        Control control = viewer.getControl();
 	        if (control != null && !control.isDisposed()) {
 	            control.setRedraw(false);
-	            TreeNode[] outlineInput = parseEditorInput();
+	            TreeNode[] outlineInput = parseOutlineStructure();
 	            viewer.setInput(outlineInput);
 	            control.setRedraw(true);
 	        }
 	    }
 	}
 
-	private TreeNode[] parseEditorInput() {
+	private TreeNode[] parseOutlineStructure() {
 		if (editorInput == null) {
 			return new TreeNode[0];
 		}
@@ -74,55 +76,7 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 
 		Parser parser = new Parser(document, resource);
 		
-		for (int lineNumber = 0; lineNumber < lines; lineNumber++) {
-			try {
-				IRegion region = document.getLineInformation(lineNumber);
-				String line = getLine(document, region);
-				
-				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || parser.hasConfigSection) {
-					parser.onConfigLine(lineNumber, line, region);
-					continue;
-				}
-				
-				parser.onAnyLine(lineNumber, line, region);
-				if (ParsingUtils.isLogEntryStart(line)) {
-					parser.onLogEntryLine(lineNumber, line, region);
-				}
-				
-				if (line.contains("---[ SYNCHRONIZATION")) {
-					line = line.substring(line.indexOf("---["));
-					parser.onContextDumpStart(lineNumber, line, region, false); 
-				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK") ||
-						line.startsWith("---[ preview")) {
-					parser.onContextDumpStart(lineNumber, line, region, true);
-				} else if (line.startsWith("---[ SCRIPT")) {
-					parser.onScriptStart(lineNumber, line, region);
-				} else if (line.startsWith("---[ EXPRESSION")) {
-					parser.onExpressionStart(lineNumber, line, region);					
-				} else if (line.startsWith("---[ MAPPING")) {
-					parser.onMappingStart(lineNumber, line, region);					
-				} else if (line.startsWith("    PROJECTION ShadowType Discr")) {
-					parser.onProjectionContextDumpStart(lineNumber, line, region);
-				} else if (line.startsWith("---[ Going to EXECUTE")) {
-					parser.onGoingToExecute(lineNumber, line, region);		
-				} else if (line.startsWith("###[ CLOCKWORK SUMMARY")) {
-					parser.onClockworkSummary(lineNumber, line, region);
-				} else if (line.startsWith("---[")) {
-					parser.onMappingStart(lineNumber, line, region);		// temporary solution					
-				} 
-			} catch (BadLocationException e) {
-				System.err.println("Couldn't parse line #" + lineNumber + ": " + e);
-			}
-		}
-		System.out.println("### FOLDING REGIONS: " + parser.foldingRegions.size());
-		editor.updateFoldingStructure(parser.foldingRegions);
-		System.out.println("Parsed in " + (System.currentTimeMillis()-start) + " ms");
-		try {
-			parser.dumpInfo();
-		} catch (BadLocationException e) {
-			System.err.println("Couldn't dump info: " + e);
-		}
-		return parser.nodes.toArray(new TreeNode[0]);
+		
 	}
 
 	private int parseConfiguration(IDocument document, Parser parser) {

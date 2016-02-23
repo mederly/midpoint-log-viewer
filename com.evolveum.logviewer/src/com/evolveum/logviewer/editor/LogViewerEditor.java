@@ -3,10 +3,12 @@ package com.evolveum.logviewer.editor;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
+import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.IVerticalRuler;
@@ -25,7 +27,7 @@ import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.config.FoldingInstruction.Type;
 import com.evolveum.logviewer.config.FoldingInstruction.When;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
-import com.evolveum.logviewer.outline.ParsingUtils;
+import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class LogViewerEditor extends TextEditor {
 
@@ -33,9 +35,8 @@ public class LogViewerEditor extends TextEditor {
 
 	public LogViewerEditor() {
 		super();
-		ColorManager colorManager = new ColorManager();
-		MyConfiguration myconfig = new MyConfiguration(colorManager);
-		setSourceViewerConfiguration(myconfig);
+		MyColorManager colorManager = new MyColorManager();
+		setSourceViewerConfiguration(new MySourceViewerConfiguration(colorManager));
 		setDocumentProvider(new MyDocumentProvider());
 	}
 	
@@ -43,6 +44,7 @@ public class LogViewerEditor extends TextEditor {
 		super.dispose();
 	}
 	
+	@SuppressWarnings("rawtypes")
 	public Object getAdapter(Class required) {
 		if (IContentOutlinePage.class.equals(required)) {
 			if (outlinePage == null) {
@@ -70,57 +72,56 @@ public class LogViewerEditor extends TextEditor {
 	    annotationModel = viewer.getProjectionAnnotationModel();
 	}
 	
-	private Annotation[] oldAnnotations;
+	private Annotation[] currentAnnotations;
 	private ProjectionAnnotationModel annotationModel;
 	
-	public void updateFoldingStructure(List positions) {
+	public void updateFoldingStructure(List<Position> positions) {
 		System.out.println("*** Updating folding structure: " + positions.size() + " positions");
 		
-		Annotation[] annotations = new Annotation[positions.size()];
+		Annotation[] newAnnotationsArray = new Annotation[positions.size()];
 
 		// this will hold the new annotations along
 		// with their corresponding positions
-		HashMap newAnnotations = new HashMap();
+		Map<Annotation,Position> newAnnotationsMap = new HashMap<>();
 
 		for (int i = 0; i < positions.size(); i++) {
 			ProjectionAnnotation annotation = new ProjectionAnnotation();
-			newAnnotations.put(annotation, positions.get(i));
-			annotations[i] = annotation;
+			newAnnotationsMap.put(annotation, positions.get(i));
+			newAnnotationsArray[i] = annotation;
 		}
 
-		annotationModel.modifyAnnotations(oldAnnotations, newAnnotations, null);
-		oldAnnotations = annotations;
+		annotationModel.modifyAnnotations(currentAnnotations, newAnnotationsMap, null);
+		currentAnnotations = newAnnotationsArray;
 	}
 	
 	@Override
 	protected ISourceViewer createSourceViewer(Composite parent, IVerticalRuler ruler, int styles) {
 		ProjectionViewer viewer = new ProjectionViewer(parent, ruler, getOverviewRuler(), isOverviewRulerVisible(), styles);
-
-		// ensure decoration support has been created and configured.
-		getSourceViewerDecorationSupport(viewer);
-		
+		getSourceViewerDecorationSupport(viewer);				// ensure decoration support has been created and configured.
 		viewer.invalidateTextPresentation();
-		
 		return viewer;
 	}
 
 	@Override
 	protected void editorSaved() {
 		super.editorSaved();
+		applyConfigurationAndActions();
 		if (outlinePage != null) {
 			outlinePage.update();
 		}
-		applyConfiguration();
 	}
 
-	public void applyConfiguration() {
+	public void applyConfigurationAndActions() {
+		System.out.println("==> Starting application of configuration and actions <==");
+		long started = System.currentTimeMillis();
+
 		ISourceViewer sourceViewer = getSourceViewer();
-		
-		((MyConfiguration) getSourceViewerConfiguration()).update(sourceViewer);
+		((MySourceViewerConfiguration) getSourceViewerConfiguration()).update(sourceViewer);
 		sourceViewer.invalidateTextPresentation();
 		
 		ActionExecutor.executeActions(sourceViewer);
 		
+		System.out.println("==> Configuration and actions applied in " + (System.currentTimeMillis()-started) + " msec <==");
 	}
 	
 }

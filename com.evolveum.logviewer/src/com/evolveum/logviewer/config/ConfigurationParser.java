@@ -11,8 +11,7 @@ import org.eclipse.jface.text.IRegion;
 
 import com.evolveum.logviewer.editor.DocumentUtils;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
-import com.evolveum.logviewer.outline.OidInfo;
-import com.evolveum.logviewer.outline.ParsingUtils;
+import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class ConfigurationParser {
 	
@@ -178,6 +177,8 @@ public class ConfigurationParser {
 				config.setWarningIfDelay(parseProblemIfDelay(line));
 			} else if (line.startsWith("%info-if-delay")) {
 				config.setInfoIfDelay(parseProblemIfDelay(line));
+			} else if (line.startsWith("%outline")) {
+				config.addOutlineInstruction(OutlineInstruction.parseFromLine(line));
 			}
 		}
 		return lineNumber;
