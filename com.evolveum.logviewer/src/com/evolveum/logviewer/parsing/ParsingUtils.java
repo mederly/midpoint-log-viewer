@@ -4,6 +4,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IRegion;
+
 public class ParsingUtils {
 
 	public static boolean isLogEntryStart(String line) {
@@ -32,6 +36,19 @@ public class ParsingUtils {
 		} catch (ParseException e) {
 			return null;
 		}
+	}
+
+	public static String suffix(IDocument document, int lineNumber, boolean newLine) throws BadLocationException {
+		String date = "?";
+		int lineWithDate = newLine ? lineNumber-1 : lineNumber;
+		if (lineWithDate >= 0) {
+			IRegion dateRegion = document.getLineInformation(lineWithDate);
+			String dateLine = document.get(dateRegion.getOffset(), dateRegion.getLength());
+			if (dateLine.length() >= 23) {
+				date = dateLine.substring(0, 23); 
+			}
+		}
+		return " " + date + " (#" + lineNumber + ")";
 	}
 
 }

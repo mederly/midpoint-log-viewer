@@ -75,7 +75,13 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 		}   
 
 		Parser parser = new Parser(document, resource);
-		
+		parser.parse();
+
+		System.out.println("### FOLDING REGIONS: " + parser.getFoldingRegions().size());
+		editor.updateFoldingStructure(parser.getFoldingRegions());
+		System.out.println("Parsed in " + (System.currentTimeMillis()-start) + " ms");
+
+		return parser.getTreeNodesAsArray();
 		
 	}
 

@@ -19,14 +19,17 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.Position;
 
+import com.evolveum.logviewer.config.ConfigurationParser;
+import com.evolveum.logviewer.config.ConfigurationTemplateHelp;
 import com.evolveum.logviewer.config.EditorConfiguration;
 import com.evolveum.logviewer.config.ErrorMarkingInstruction;
 import com.evolveum.logviewer.config.OidInfo;
 import com.evolveum.logviewer.config.ThreadInfo;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.outline.TreeNode;
-import com.evolveum.logviewer.config.ConfigurationParser;
-import com.evolveum.logviewer.config.ConfigurationTemplateHelp;
+import com.evolveum.logviewer.tree.OutlineLevelDefinition;
+import com.evolveum.logviewer.tree.OutlineNode;
+import com.evolveum.logviewer.tree.OutlineNodeContent;
 
 public class Parser {
 
@@ -36,9 +39,8 @@ public class Parser {
 	
 	private final EditorConfiguration configuration;
 	
-	private final List<TreeNode> nodes = new ArrayList<>();
-	
-	private DocumentItem currentDocumentItem;
+	private final OutlineNode<? extends OutlineNodeContent> firstOutlineNode;
+	private OutlineNode<? extends OutlineNodeContent> currentOutlineNode;
 
 //	// ContextDump that was lastly created
 //	private ContextDumpItem lastContextDump = null;
@@ -74,7 +76,13 @@ public class Parser {
 		this.numberOfLines = document.getNumberOfLines();
 		this.configuration = ConfigurationParser.getConfiguration(document);
 		this.componentNames = configuration.componentNames;
-		this.currentDocumentItem = new GenericDocumentItem(configuration.getRootOutlineInstruction());
+		OutlineLevelDefinition<? extends OutlineNodeContent> rootOutlineInstruction = configuration.getRootOutlineInstruction();
+		if (rootOutlineInstruction != null) {
+			this.firstOutlineNode = new OutlineNode<>(rootOutlineInstruction);
+			this.currentOutlineNode = this.firstOutlineNode;
+		} else {
+			this.firstOutlineNode = null;
+		}
 	}
 	
 	public void parse() {
@@ -93,52 +101,56 @@ public class Parser {
 					onLogEntryLine(lineNumber, line, region);
 				}
 				
-				currentDocumentItem.parseLine(lineNumber, line, region);
+				if (currentOutlineNode != null) {
+					currentOutlineNode.parseLine(lineNumber, line, region, document);
+					if (currentOutlineNode.getNextSibling() != null) {
+						currentOutlineNode = currentOutlineNode.getNextSibling();
+					}
+				}
 
-				if (line.contains("---[ SYNCHRONIZATION")) {
-					line = line.substring(line.indexOf("---["));
-					parser.onContextDumpStart(lineNumber, line, region, false); 
-				} else if (line.startsWith("---[ PROJECTOR") || line.startsWith("---[ CLOCKWORK") ||
-						line.startsWith("---[ preview")) {
-					parser.onContextDumpStart(lineNumber, line, region, true);
-				} else if (line.startsWith("---[ SCRIPT")) {
-					parser.onScriptStart(lineNumber, line, region);
-				} else if (line.startsWith("---[ EXPRESSION")) {
-					parser.onExpressionStart(lineNumber, line, region);					
-				} else if (line.startsWith("---[ MAPPING")) {
-					parser.onMappingStart(lineNumber, line, region);					
-				} else if (line.startsWith("    PROJECTION ShadowType Discr")) {
-					parser.onProjectionContextDumpStart(lineNumber, line, region);
-				} else if (line.startsWith("---[ Going to EXECUTE")) {
-					parser.onGoingToExecute(lineNumber, line, region);		
-				} else if (line.startsWith("###[ CLOCKWORK SUMMARY")) {
-					parser.onClockworkSummary(lineNumber, line, region);
-				} else if (line.startsWith("---[")) {
-					parser.onMappingStart(lineNumber, line, region);		// temporary solution					
-				} 
+//				if (line.contains("---[ SYNCHRONIZATION")) {
+//					line = line.substring(line.indexOf("---["));
+//					onContextDumpStart(lineNumber, line, region, false); 
+//				} else if () {
+//					parser.onContextDumpStart(lineNumber, line, region, true);
+//				if (line.startsWith("---[ SCRIPT")) {
+//					onScriptStart(lineNumber, line, region);
+//				} else if (line.startsWith("---[ EXPRESSION")) {
+//					onExpressionStart(lineNumber, line, region);					
+//				} else if (line.startsWith("---[ MAPPING")) {
+//					onMappingStart(lineNumber, line, region);					
+//				} else if (line.startsWith("    PROJECTION ShadowType Discr")) {
+//					onProjectionContextDumpStart(lineNumber, line, region);
+//				} else if (line.startsWith("---[ Going to EXECUTE")) {
+//					onGoingToExecute(lineNumber, line, region);		
+//				} else if () {
+//					onClockworkSummary(lineNumber, line, region);
+//				} else if (line.startsWith("---[")) {
+//					onMappingStart(lineNumber, line, region);		// temporary solution					
+//				} 
 			} catch (BadLocationException e) {
 				System.err.println("Couldn't parse line #" + lineNumber + ": " + e);
 			}
 		}
-		System.out.println("### FOLDING REGIONS: " + parser.foldingRegions.size());
-		editor.updateFoldingStructure(parser.foldingRegions);
-		System.out.println("Parsed in " + (System.currentTimeMillis()-start) + " ms");
 		try {
-			parser.dumpInfo();
+			dumpInfo();
 		} catch (BadLocationException e) {
 			System.err.println("Couldn't dump info: " + e);
 		}
-		return parser.nodes.toArray(new TreeNode[0]);
+		
+		if (firstOutlineNode != null) {
+			firstOutlineNode.dumpAll(this);
+		}
 	}
 	
 	private Long lastTimestamp = null;
 	
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
 		// This may be a line that closes a context dump.
-		if (currentContextDump != null) {
-			nodes.add(currentContextDump.createTreeNode(this));
-			currentContextDump = null;
-		}
+//		if (currentContextDump != null) {
+//			nodes.add(currentContextDump.createTreeNode(this));
+//			currentContextDump = null;
+//		}
 		
 		if (!configuration.skipThreadProcessing) {
 			registerThread(line);
@@ -198,102 +210,79 @@ public class Parser {
 		info.records++;
 	}
 
-	// newLine is true, if "---[" starts on a separate (new) line
-	public void onContextDumpStart(int lineNumber, String line, IRegion region, boolean newLine) throws BadLocationException {
-		currentContextDump = new ContextDumpItem(region, lineNumber, line, document, lastContextDump);
-		
-		String line2 = getLine(lineNumber+1);
-		currentContextDump.parseWaveInfo(line2);
-		currentContextDump.labelCore = line.substring(5);
-		currentContextDump.labelSuffix = suffix(document, lineNumber, newLine);
-		
-		lastContextDump = currentContextDump;
-	}
-	
 	private String getLine(int number) throws BadLocationException {
 		IRegion region = document.getLineInformation(number);
 		String line = document.get(region.getOffset(), region.getLength());
 		return line;
 	}
 
-	public void onScriptStart(int lineNumber, String line, IRegion region) throws BadLocationException {
-		onScriptOrExpression(lineNumber, line, region);
-	}
-
-	public void onExpressionStart(int lineNumber, String line, IRegion region) throws BadLocationException {
-		onScriptOrExpression(lineNumber, line, region);
-	}
-
-	private void onScriptOrExpression(int lineNumber, String line, IRegion region) throws BadLocationException {
-		String label = line.substring(5) + suffix(document, lineNumber, true);
-		TreeNode node = new TreeNode(label, region);
-		scriptsAndExpressions.add(node);
-	}
-
-	public void onMappingStart(int lineNumber, String line, IRegion region) throws BadLocationException {
-		String label = line.substring(5) + suffix(document, lineNumber, true);
-		mappingsAndExecutions.add(new MappingItem(region, lineNumber, document, getPreviousMapping(), label, scriptsAndExpressions));
-		scriptsAndExpressions.clear();
-	}
-	
-	private MappingItem getPreviousMapping() {
-		int i = mappingsAndExecutions.size()-1;
-		while (i >= 0) {
-			if (mappingsAndExecutions.get(i) instanceof MappingItem) {
-				return (MappingItem) mappingsAndExecutions.get(i);
-			}
-			i--;
-		}
-		return null;
-	}
-	
-	public void onGoingToExecute(int lineNumber, String line, IRegion region) throws BadLocationException {
-		String label = "--> " + line.substring(5) + suffix(document, lineNumber, true);
-		TreeNode node = new TreeNode(label, region);		
-		node.addChildren(scriptsAndExpressions);
-		scriptsAndExpressions.clear();		
-		mappingsAndExecutions.add(new ExecutionItem(region, lineNumber, node));
-	}
-	
-	public void onClockworkSummary(int lineNumber, String line, IRegion region) throws BadLocationException {
-		flushMappingsAndScriptsAndExpressions();
-		TreeNode node = new TreeNode(line + suffix(document, lineNumber, true), region);
-		nodes.add(node);
-		currentContextDump = null;
-	}
-	
-	private void flushMappingsAndScriptsAndExpressions() {
-		for (DocumentItem item : mappingsAndExecutions) {
-			if (item.treeNode != null) {
-				nodes.add(item.treeNode);
-			} else {
-				System.err.println("Problem - mapping/execution without treeNode: " + item);
-			}
-		}
-		nodes.addAll(scriptsAndExpressions);
-		mappingsAndExecutions.clear();
-		scriptsAndExpressions.clear();
-	}
-
-	private String suffix(IDocument document, int lineNumber, boolean newLine) throws BadLocationException {
-		String date = "?";
-		int lineWithDate = newLine ? lineNumber-1 : lineNumber;
-		if (lineWithDate >= 0) {
-			IRegion dateRegion = document.getLineInformation(lineWithDate);
-			String dateLine = document.get(dateRegion.getOffset(), dateRegion.getLength());
-			if (dateLine.length() >= 23) {
-				date = dateLine.substring(0, 23); 
-			}
-		}
-		return " " + date + " (#" + lineNumber + ")";
-	}
-
-	public void onProjectionContextDumpStart(int lineNumber, String line, IRegion region) {
-		if (currentContextDump != null) {
-			TreeNode node = new TreeNode(line, region.getOffset(), region.getLength());
-			currentContextDump.addProjectionContextTreeNode(node);
-		}		
-	}
+//	public void onScriptStart(int lineNumber, String line, IRegion region) throws BadLocationException {
+//		onScriptOrExpression(lineNumber, line, region);
+//	}
+//
+//	public void onExpressionStart(int lineNumber, String line, IRegion region) throws BadLocationException {
+//		onScriptOrExpression(lineNumber, line, region);
+//	}
+//
+//	private void onScriptOrExpression(int lineNumber, String line, IRegion region) throws BadLocationException {
+//		String label = line.substring(5) + suffix(document, lineNumber, true);
+//		TreeNode node = new TreeNode(label, region);
+//		scriptsAndExpressions.add(node);
+//	}
+//
+//	public void onMappingStart(int lineNumber, String line, IRegion region) throws BadLocationException {
+//		String label = line.substring(5) + suffix(document, lineNumber, true);
+//		mappingsAndExecutions.add(new MappingItem(region, lineNumber, document, getPreviousMapping(), label, scriptsAndExpressions));
+//		scriptsAndExpressions.clear();
+//	}
+//	
+//	private MappingItem getPreviousMapping() {
+//		int i = mappingsAndExecutions.size()-1;
+//		while (i >= 0) {
+//			if (mappingsAndExecutions.get(i) instanceof MappingItem) {
+//				return (MappingItem) mappingsAndExecutions.get(i);
+//			}
+//			i--;
+//		}
+//		return null;
+//	}
+//	
+//	public void onGoingToExecute(int lineNumber, String line, IRegion region) throws BadLocationException {
+//		String label = "--> " + line.substring(5) + suffix(document, lineNumber, true);
+//		TreeNode node = new TreeNode(label, region);		
+//		node.addChildren(scriptsAndExpressions);
+//		scriptsAndExpressions.clear();		
+//		mappingsAndExecutions.add(new ExecutionItem(region, lineNumber, node));
+//	}
+//	
+//	public void onClockworkSummary(int lineNumber, String line, IRegion region) throws BadLocationException {
+//		flushMappingsAndScriptsAndExpressions();
+//		TreeNode node = new TreeNode(line + suffix(document, lineNumber, true), region);
+//		nodes.add(node);
+//		currentContextDump = null;
+//	}
+//	
+//	private void flushMappingsAndScriptsAndExpressions() {
+//		for (DocumentItem item : mappingsAndExecutions) {
+//			if (item.treeNode != null) {
+//				nodes.add(item.treeNode);
+//			} else {
+//				System.err.println("Problem - mapping/execution without treeNode: " + item);
+//			}
+//		}
+//		nodes.addAll(scriptsAndExpressions);
+//		mappingsAndExecutions.clear();
+//		scriptsAndExpressions.clear();
+//	}
+//
+//	
+//
+//	public void onProjectionContextDumpStart(int lineNumber, String line, IRegion region) {
+//		if (currentContextDump != null) {
+//			TreeNode node = new TreeNode(line, region.getOffset(), region.getLength());
+//			currentContextDump.addProjectionContextTreeNode(node);
+//		}		
+//	}
 
 	public void onAnyLine(int lineNumber, String line, IRegion region) throws BadLocationException {
 		extractOidInfo(lineNumber, line);
@@ -479,7 +468,7 @@ public class Parser {
 			Map.Entry<String, OidInfo> entry = iter.next();
 			boolean found = false;
 			for (OidInfo cfg : configuredOidInfos) {
-				if (cfg.oid.equals(entry.getKey())) {
+				if (cfg.getOid().equals(entry.getKey())) {
 					found = true;
 				}
 			}
@@ -496,13 +485,13 @@ public class Parser {
 
 			@Override
 			public int compare(OidInfo o1, OidInfo o2) {
-				return o1.type.toLowerCase().compareTo(o2.type.toLowerCase());
+				return o1.getType().toLowerCase().compareTo(o2.getType().toLowerCase());
 			}
 			
 		});
 		
 		for (OidInfo oidInfo : reallyNewOidInfoList) {
-			sb.append("%oid ").append(oidInfo.oid).append(" : ").append(oidInfo.color).append(" : ").append(oidInfo.type).append(" ").append(oidInfo.names);
+			sb.append("%oid ").append(oidInfo.getOid()).append(" : ").append(oidInfo.getColor()).append(" : ").append(oidInfo.getType()).append(" ").append(oidInfo.getNames());
 			sb.append("\n");
 		}
 		return true;
@@ -560,6 +549,25 @@ public class Parser {
 	
 	private String getLine(IDocument document, IRegion region) throws BadLocationException {
 		return document.get(region.getOffset(), region.getLength());
+	}
+
+	public List<Position> getFoldingRegions() {
+		return foldingRegions;
+	}
+
+	public TreeNode[] getTreeNodesAsArray() {
+		List<TreeNode> treeNodes = new ArrayList<>();
+		
+		OutlineNode<? extends OutlineNodeContent> outlineNode = firstOutlineNode; 
+		while (outlineNode != null)	{
+			TreeNode tn = outlineNode.createTreeNode(this);
+			if (tn != null) {
+				treeNodes.add(tn);
+			}
+			outlineNode = outlineNode.getNextSibling();
+		}
+
+		return treeNodes.toArray(new TreeNode[0]);
 	}
 	
 }

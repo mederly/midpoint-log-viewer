@@ -5,6 +5,10 @@ import java.util.List;
 
 import org.eclipse.jface.text.IRegion;
 
+import com.evolveum.logviewer.tree.GeneralLevelDefinition;
+import com.evolveum.logviewer.tree.OutlineLevelDefinition;
+import com.evolveum.logviewer.tree.OutlineNodeContent;
+
 public class EditorConfiguration {
 
 	public Boolean componentNames = null;			// null = auto detect
@@ -14,7 +18,8 @@ public class EditorConfiguration {
 	private Integer infoIfDelay;
 	
 	private List<ErrorMarkingInstruction> errorInstructions = new ArrayList<>();
-	private List<OutlineInstruction> outlineInstructions = new ArrayList<>();
+	private List<OutlineLevelDefinition<? extends OutlineNodeContent>> outlineLevelDefinitions = new ArrayList<>();
+	private OutlineLevelDefinition<? extends OutlineNodeContent> rootOutlineLevelDefinition;
 
 	public List<ErrorMarkingInstruction> getErrorInstructions() {
 		return errorInstructions;
@@ -24,22 +29,39 @@ public class EditorConfiguration {
 		errorInstructions.add(errorInstruction);
 	}
 	
-	public List<OutlineInstruction> getOutlineInstructions() {
-		return outlineInstructions;
-	}
-	
-	public void addOutlineInstruction(OutlineInstruction outlineInstruction) {
-		outlineInstructions.add(outlineInstruction);
-	}
-	
-	public OutlineInstruction getRootOutlineInstruction() {
-		OutlineInstruction root = null;
-		for (OutlineInstruction oi : outlineInstructions) {
-			if (root == null || oi.getLevel() < root.getLevel()) {
-				root = oi;
-			}
+	public void addOutlineInstruction(OutlineLevelDefinition<? extends OutlineNodeContent> outlineInstruction) {
+		if (outlineInstruction != null) {
+			outlineLevelDefinitions.add(outlineInstruction);
 		}
-		return root;
+	}
+	
+	public void sortOutlineLevelDefinitions() {
+		int remaining = outlineLevelDefinitions.size();
+		int levelNumber = 0;
+		OutlineLevelDefinition<? extends OutlineNodeContent> lastDefinition = null; 		
+		while (remaining > 0) {
+			for (OutlineLevelDefinition<? extends OutlineNodeContent> definition : outlineLevelDefinitions) {
+				if (definition.getLevel() < 0) {
+					System.err.println("Level less than zero: " + definition);
+					return;
+				}
+				if (definition.getLevel() == levelNumber) {
+					if (lastDefinition == null) {
+						rootOutlineLevelDefinition = definition;
+						lastDefinition = definition;
+					} else {
+						lastDefinition.setNextLevelDefinition(definition);
+						lastDefinition = definition;
+					}
+					remaining--;
+				}
+			}
+			levelNumber++;
+		}
+	}
+
+	public OutlineLevelDefinition<? extends OutlineNodeContent> getRootOutlineInstruction() {
+		return rootOutlineLevelDefinition;
 	}
 	
 	public Integer getErrorIfDelay() {
