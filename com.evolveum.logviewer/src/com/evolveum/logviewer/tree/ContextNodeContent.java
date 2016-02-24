@@ -71,10 +71,11 @@ public class ContextNodeContent extends OutlineNodeContent {
 		OutlineNode<ContextNodeContent> first = getFirstDump();
 		OutlineNode<ContextNodeContent> previous = getPreviousDump();
 		if (owner.getDate() != null && (previous != null || first != null)) {
-			label += " [delta/sum: " + getDelta(previous) + "/" + getDelta(first) + " ms]";
+			owner.setDelta(getDelta(previous));
+			owner.setSum(getDelta(first));
 		}
 		
-		TreeNode treeNode = new TreeNode(label, owner.getRegion());
+		TreeNode treeNode = new TreeNode(owner, label, owner.getRegion());
 		treeNode.addChildren(children);
 		return treeNode;
 	}
@@ -128,5 +129,17 @@ public class ContextNodeContent extends OutlineNodeContent {
 			return;
 		}
 		projWave = line.substring(j+3, k);
+	}
+
+	// from: ---[ PROJECTOR (INITIAL) context after load ]--------------------------------
+	// to: PROJECTOR (INITIAL) context after load 
+	public void parseLabelCore(String line) {
+		int i = line.indexOf(" ]---");
+		if (i > 0) {
+			line = line.substring(5, i);
+		} else {
+			line = line.substring(5);
+		}
+		setLabelCore(line);
 	}
 }

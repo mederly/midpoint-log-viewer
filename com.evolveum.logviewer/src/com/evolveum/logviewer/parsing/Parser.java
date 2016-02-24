@@ -70,6 +70,7 @@ public class Parser {
 	
 	Boolean componentNames;				// whether expect component names (e.g. [PROVISIONING]) in log lines
 	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public Parser(IDocument document, IResource resource) {
 		this.document = document;
 		this.resource = resource;
@@ -78,7 +79,7 @@ public class Parser {
 		this.componentNames = configuration.componentNames;
 		OutlineLevelDefinition<? extends OutlineNodeContent> rootOutlineInstruction = configuration.getRootOutlineInstruction();
 		if (rootOutlineInstruction != null) {
-			this.firstOutlineNode = new OutlineNode<>(rootOutlineInstruction);
+			this.firstOutlineNode = new OutlineNode(configuration, rootOutlineInstruction.getLevel());
 			this.currentOutlineNode = this.firstOutlineNode;
 		} else {
 			this.firstOutlineNode = null;
@@ -101,11 +102,8 @@ public class Parser {
 					onLogEntryLine(lineNumber, line, region);
 				}
 				
-				if (currentOutlineNode != null) {
-					currentOutlineNode.parseLine(lineNumber, line, region, document);
-					if (currentOutlineNode.getNextSibling() != null) {
-						currentOutlineNode = currentOutlineNode.getNextSibling();
-					}
+				if (currentOutlineNode != null && currentOutlineNode.parseLine(lineNumber, line, region, document)) {
+					currentOutlineNode = currentOutlineNode.getLastSibling();
 				}
 
 //				if (line.contains("---[ SYNCHRONIZATION")) {
@@ -166,11 +164,11 @@ public class Parser {
 			if (lastTimestamp != null) {
 				long delta = currentTimestamp - lastTimestamp;
 				if (configuration.getErrorIfDelay() != null && delta >= configuration.getErrorIfDelay()) {
-					addMarker(lineNumber, "Delay (" + delta + " msec) greater than or equal configured threshold of " + configuration.getErrorIfDelay() + " msec", IMarker.SEVERITY_ERROR);
+					addMarker(lineNumber, "Delay (" + delta + " msec) reached configured threshold of " + configuration.getErrorIfDelay() + " msec", IMarker.SEVERITY_ERROR);
 				} else if (configuration.getWarningIfDelay() != null && delta >= configuration.getWarningIfDelay()) {
-					addMarker(lineNumber, "Delay (" + delta + " msec) greater than or equal configured threshold of " + configuration.getWarningIfDelay() + " msec", IMarker.SEVERITY_WARNING);
+					addMarker(lineNumber, "Delay (" + delta + " msec) reached configured threshold of " + configuration.getWarningIfDelay() + " msec", IMarker.SEVERITY_WARNING);
 				} else if (configuration.getInfoIfDelay() != null && delta >= configuration.getInfoIfDelay()) {
-					addMarker(lineNumber, "Delay (" + delta + " msec) greater than or equal configured threshold of " + configuration.getInfoIfDelay() + " msec", IMarker.SEVERITY_INFO);
+					addMarker(lineNumber, "Delay (" + delta + " msec) reached configured threshold of " + configuration.getInfoIfDelay() + " msec", IMarker.SEVERITY_INFO);
 				}
 			}
 			lastTimestamp = currentTimestamp;
@@ -561,13 +559,29 @@ public class Parser {
 		OutlineNode<? extends OutlineNodeContent> outlineNode = firstOutlineNode; 
 		while (outlineNode != null)	{
 			TreeNode tn = outlineNode.createTreeNode(this);
-			if (tn != null) {
+			if (tn != null && !tn.isEmpty()) {
+				tn.removeEmptyChildren();
 				treeNodes.add(tn);
 			}
 			outlineNode = outlineNode.getNextSibling();
 		}
+		
+		TreeNode.removeEmptyRoots(treeNodes, null);
+		
+		System.out.println("Tree nodes:");
+		dumpTreeNodes(treeNodes, 0);
 
 		return treeNodes.toArray(new TreeNode[0]);
+	}
+
+	private void dumpTreeNodes(List<TreeNode> treeNodes, int level) {
+		for (TreeNode treeNode : treeNodes) {
+			for (int i = 0; i <= level; i++) {
+				System.out.print("..");
+			}
+			System.out.println(treeNode != null ? treeNode.getLabel() : "!!! NULL TreeNode !!!");
+			dumpTreeNodes(treeNode.getChildren(), level+1);
+		}
 	}
 	
 }

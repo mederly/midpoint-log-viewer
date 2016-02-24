@@ -8,6 +8,7 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
+import com.evolveum.logviewer.config.EditorConfiguration;
 import com.evolveum.logviewer.editor.DocumentUtils;
 import com.evolveum.logviewer.outline.TreeNode;
 import com.evolveum.logviewer.parsing.MatchResult;
@@ -23,8 +24,8 @@ import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class OutlineNode<C extends OutlineNodeContent> {
 
-	final private OutlineLevelDefinition<C> levelDefinition;
-	
+	final EditorConfiguration editorConfiguration;
+	final private int level;
 	private OutlineNode<?> firstChild, parent;
 	private OutlineNode<?> nextSibling, previousSibling;
 	
@@ -32,46 +33,33 @@ public class OutlineNode<C extends OutlineNodeContent> {
 	IRegion region;
 	Integer startLine = -1, endLine = -1;
 	
+	private String delta, sum;
+	
 	// other data
 	private Date date;
+	
 	private C content;
-	
-	public OutlineNode(OutlineLevelDefinition<C> levelDefinition) {
-		this.levelDefinition = levelDefinition;
-	}
-	
-	public OutlineNode(OutlineLevelDefinition<C> outlineInstruction, C content) {
-		this(outlineInstruction);
-		this.content = content;
-		content.setOwner(this);
-	}
-	
-	public OutlineNode(OutlineLevelDefinition<C> outlineInstruction, IRegion region, int startLine) {
-		this(outlineInstruction);
-		this.region = region;
-		this.startLine = startLine;
-	}
-	
-	public OutlineNode(OutlineLevelDefinition<C> outlineInstruction, IRegion region, int startLine, IDocument document) {
-		this(outlineInstruction, region, startLine);
-		if (startLine > 1) {
-			String previousLine = DocumentUtils.getLine(document, startLine-1);
-			date = ParsingUtils.parseDate(previousLine);
-		}
-	}
+	private OutlineLevelDefinition<C> levelDefinition;
 
+	public OutlineNode(EditorConfiguration editorConfiguration, int level) {
+		this.editorConfiguration = editorConfiguration;
+		this.level = level;
+	}
+	
+	public OutlineNode(OutlineLevelDefinition<C> levelDefinition, C content, IRegion region, int startLineNumber, String line, IDocument document) {
+		this(levelDefinition.getEditorConfiguration(), levelDefinition.getLevel());
+		this.levelDefinition = levelDefinition;
+		if (content != null) {
+			this.content = content;
+			content.setOwner(this);
+		}
+		setCoordinates(region, startLineNumber, line, document);
+	}
+	
 	public OutlineLevelDefinition<C> getLevelDefinition() {
 		return levelDefinition;
 	}
 	
-//	public String getLabel() {
-//		if (content != null) {
-//			return content.getLabel();
-//		} else {
-//			return "<no label>";
-//		}
-//	}
-
 	public C getContent() {
 		return content;
 	}
@@ -92,40 +80,44 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		return date;
 	}
 
-	public void parseLine(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
-		MatchResult<C> result;
-		try {
-			result = levelDefinition.matches(this, lineNumber, line, region, document);
-		} catch (RuntimeException e) {
-			e.printStackTrace();
-			return;
-		}
-		if (result != null) {
-			nextSibling = result.getNewDocumentItem();
-			nextSibling.previousSibling = this;
-			nextSibling.parent = this.parent;
-		} else {
-			OutlineNode<?> lastChild;
-			if (firstChild == null) {
-				OutlineLevelDefinition<? extends OutlineNodeContent> nextInstruction = levelDefinition.getNextLevelDefinition();
-				if (nextInstruction == null) {
-					return;
-				}
-				firstChild = new OutlineNode<>(nextInstruction);
-				firstChild.parent = this;
-				lastChild = firstChild;
-			} else {
-				lastChild = getLastChild();
+	public boolean parseLine(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+		
+		for (OutlineLevelDefinition<? extends OutlineNodeContent> currentLevelDefinition : editorConfiguration.getOutlineLevelDefinitions(level)) {
+			MatchResult<C> result;
+			try {
+				result = (MatchResult<C>) currentLevelDefinition.matches((OutlineNode) this, lineNumber, line, region, document);
+			} catch (RuntimeException e) {
+				e.printStackTrace();
+				continue;
 			}
-			lastChild.parseLine(lineNumber, line, region, document);
+			if (result != null) {
+				result.addNodesIntoChain(this);
+				return true;
+			}			
 		}
+		
+		OutlineNode<?> lastChild;
+		if (firstChild == null) {
+			Integer nextLevel = editorConfiguration.getNextOutlineLevel(level);
+			if (nextLevel == null) {
+				return false;
+			}
+			firstChild = new OutlineNode(editorConfiguration, nextLevel);
+			firstChild.setCoordinates(region, lineNumber, line, document);
+			firstChild.parent = this;
+			lastChild = firstChild;
+		} else {
+			lastChild = getLastChild();
+		}
+		lastChild.parseLine(lineNumber, line, region, document);
+		return false;
 	}
 	
 	private OutlineNode<?> getLastChild() {
 		return firstChild != null ? firstChild.getLastSibling() : null; 
 	}
 
-	private OutlineNode<?> getLastSibling() {
+	public OutlineNode<?> getLastSibling() {
 		OutlineNode<?> sibling = this;
 		while (sibling.nextSibling != null) {
 			sibling = sibling.nextSibling;
@@ -142,14 +134,35 @@ public class OutlineNode<C extends OutlineNodeContent> {
 	public OutlineNode<?> getPreviousSibling() {
 		return previousSibling;
 	}
-	
+	public void setNextSibling(OutlineNode<?> nextSibling) {
+		this.nextSibling = nextSibling;
+	}
+	public void setPreviousSibling(OutlineNode<?> previousSibling) {
+		this.previousSibling = previousSibling;
+	}
+	public OutlineNode<?> getParent() {
+		return parent;
+	}
+	public void setParent(OutlineNode<?> parent) {
+		this.parent = parent;
+	}
+
 	public void setCoordinates(IRegion region, int startLineNumber, String line, IDocument document) {
+		if (region == null) {
+			System.err.println("No region in setCoordinates!");
+		}
 		this.region = region;
 		this.startLine = startLineNumber;
-		if (startLineNumber > 1) {
-			String previousLine = DocumentUtils.getLine(document, startLineNumber-1);
-			date = ParsingUtils.parseDate(previousLine);
+		
+		final String dateLine;
+		if (ParsingUtils.isLogEntryStart(line)) {
+			dateLine = line;
+		} else if (startLineNumber > 1) {
+			dateLine = DocumentUtils.getLine(document, startLineNumber-1);
+		} else {
+			dateLine = null;
 		}
+		date = ParsingUtils.parseDate(dateLine);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -172,15 +185,13 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		List<OutlineNode<?>> rv = new ArrayList<>();
 		OutlineNode<?> child = firstChild;
 		while (child != null) {
-			if (child.getContent() != null) {
-				if (contentClasses.length == 0) {
-					rv.add((OutlineNode<?>) child);					
-				} else {
-					for (Class<? extends OutlineNodeContent> contentClass : contentClasses) {
-						if (contentClass.isAssignableFrom(child.getContent().getClass())) {
-							rv.add((OutlineNode<?>) child);
-							break;
-						}
+			if (contentClasses.length == 0) {
+				rv.add((OutlineNode<?>) child);					
+			} else if (child.getContent() != null) {
+				for (Class<? extends OutlineNodeContent> contentClass : contentClasses) {
+					if (contentClass.isAssignableFrom(child.getContent().getClass())) {
+						rv.add((OutlineNode<?>) child);
+						break;
 					}
 				}
 			}
@@ -189,7 +200,7 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		return rv;
 	}
 
-	private TreeNode cachedTreeNode;			// TODO remove this
+	private TreeNode cachedTreeNode;
 	
 	public TreeNode createTreeNode(Parser parser) {
 		if (cachedTreeNode != null) {
@@ -198,7 +209,7 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		if (content != null) {
 			cachedTreeNode = content.createTreeNode(parser);
 		} else {
-			TreeNode treeNode = new TreeNode("<none>", 0, 1);		// ????
+			TreeNode treeNode = new TreeNode(this, "<none>", 0, 1);		// ????
 			for (OutlineNode<? extends OutlineNodeContent> node : getAllChildren()) {
 				treeNode.addChild(node.createTreeNode(parser));
 			}
@@ -213,12 +224,12 @@ public class OutlineNode<C extends OutlineNodeContent> {
 	}
 
 	public void dumpAll(Parser parser) {
-		for (int i = 0; i < levelDefinition.getLevel(); i++) {
+		for (int i = 0; i < level; i++) {
 			System.out.print("  ");
 		}
 		TreeNode treeNode = createTreeNode(parser);
 		String label = treeNode != null ? treeNode.getLabel() : "(no tree node)";
-		System.out.println("L:" + label + "; C:" + content);
+		System.out.println("Label: " + label + "; Content: " + content);
 		if (firstChild != null) {
 			firstChild.dumpAll(parser);
 		}
@@ -227,5 +238,28 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		}
 	}
 	
+	
+	
+	@Override
+	public String toString() {
+		return "OutlineNode [level=" + level + ", content=" + content + ", levelDefinition="
+				+ levelDefinition + ", startLine=" + startLine + ", date=" + date + "]";
+	}
+
+	public String getDelta() {
+		return delta;
+	}
+
+	public void setDelta(String delta) {
+		this.delta = delta;
+	}
+
+	public String getSum() {
+		return sum;
+	}
+
+	public void setSum(String sum) {
+		this.sum = sum;
+	}
 	
 }

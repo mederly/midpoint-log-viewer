@@ -6,17 +6,22 @@ import java.util.regex.Pattern;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
+import com.evolveum.logviewer.config.EditorConfiguration;
 import com.evolveum.logviewer.parsing.MatchResult;
 import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeContent> {
+
+	public GeneralLevelDefinition(EditorConfiguration editorConfiguration) {
+		super(editorConfiguration);
+	}
 
 	private String text;
 	private String regexp;
 	private Pattern pattern;
 	private String label;
 	
-	public static GeneralLevelDefinition parseFromLine(String line) {
+	public static GeneralLevelDefinition parseFromLine(EditorConfiguration editorConfiguration, String line) {
 		line = line.trim();
 		
 		int space1 = line.indexOf(' ');
@@ -36,7 +41,7 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 			return null;			
 		}
 		
-		GeneralLevelDefinition rv = new GeneralLevelDefinition();
+		GeneralLevelDefinition rv = new GeneralLevelDefinition(editorConfiguration);
 		
 		try {
 			rv.level = Integer.parseInt(line.substring(space1+1, space2));
@@ -139,16 +144,22 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 			}
 		}
 		
+		if (sb.length() == 0) {
+			sb.append("<empty>");
+		}
 		GeneralNodeContent content = new GeneralNodeContent(sb.toString());
 		
-		OutlineNode<GeneralNodeContent> node = new OutlineNode<>(this, content);
-		node.setCoordinates(region, lineNumber, line, document);
+		OutlineNode<GeneralNodeContent> node = new OutlineNode<>(this, content, region, lineNumber, line, document);
 		return new MatchResult<>(node);
 	}
 	
 	@Override
 	public boolean isHeaderLast() {
 		return false;
+	}
+	
+	public String toString() {
+		return super.toString() + "; label: " + label;
 	}
 
 }

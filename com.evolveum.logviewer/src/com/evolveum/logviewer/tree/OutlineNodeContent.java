@@ -17,4 +17,8 @@ public abstract class OutlineNodeContent {
 		this.owner = owner;
 	}
 	
+	public String toString() {
+		return getClass().getSimpleName();
+	}
+	
 }

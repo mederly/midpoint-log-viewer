@@ -12,7 +12,9 @@ import org.eclipse.jface.text.IRegion;
 import com.evolveum.logviewer.editor.DocumentUtils;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.parsing.ParsingUtils;
+import com.evolveum.logviewer.tree.ContextLevelDefinition;
 import com.evolveum.logviewer.tree.GeneralLevelDefinition;
+import com.evolveum.logviewer.tree.SummaryLevelDefinition;
 
 public class ConfigurationParser {
 	
@@ -178,8 +180,12 @@ public class ConfigurationParser {
 				config.setWarningIfDelay(parseProblemIfDelay(line));
 			} else if (line.startsWith("%info-if-delay")) {
 				config.setInfoIfDelay(parseProblemIfDelay(line));
+			} else if (line.startsWith("%outline operation-summary")) {
+				config.addOutlineInstruction(SummaryLevelDefinition.parseFromLine(config, line));
+			} else if (line.startsWith("%outline operation-context")) {
+				config.addOutlineInstruction(ContextLevelDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%outline")) {
-				config.addOutlineInstruction(GeneralLevelDefinition.parseFromLine(line));
+				config.addOutlineInstruction(GeneralLevelDefinition.parseFromLine(config, line));
 			}
 		}
 		config.sortOutlineLevelDefinitions();

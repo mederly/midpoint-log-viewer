@@ -14,6 +14,8 @@ import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.ide.ResourceUtil;
 import org.eclipse.ui.texteditor.IDocumentProvider;
@@ -121,8 +123,33 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 	public void createControl(Composite parent) {
 
 		super.createControl(parent);
-
+		
 		TreeViewer viewer = getTreeViewer();
+		Tree tree = viewer.getTree();
+		tree.setHeaderVisible(true);
+		
+		TreeColumn column1 = new TreeColumn(tree, SWT.LEFT);
+		tree.setLinesVisible(true);
+		column1.setAlignment(SWT.LEFT);
+		column1.setText("Description");
+		column1.setWidth(600);
+		TreeColumn column2 = new TreeColumn(tree, SWT.RIGHT);
+		column2.setAlignment(SWT.LEFT);
+		column2.setText("Timestamp");
+		column2.setWidth(250);
+		TreeColumn column3 = new TreeColumn(tree, SWT.RIGHT);
+		column3.setAlignment(SWT.LEFT);
+		column3.setText("Line");
+		column3.setWidth(100);
+		TreeColumn column4 = new TreeColumn(tree, SWT.RIGHT);
+		column4.setAlignment(SWT.LEFT);
+		column4.setText("Delta");
+		column4.setWidth(100);
+		TreeColumn column5 = new TreeColumn(tree, SWT.RIGHT);
+		column5.setAlignment(SWT.LEFT);
+		column5.setText("From start");
+		column5.setWidth(100);
+		
 		viewer.setLabelProvider(new TreeLabelProvider());
 		viewer.setContentProvider(new TreeContentProvider());
 		

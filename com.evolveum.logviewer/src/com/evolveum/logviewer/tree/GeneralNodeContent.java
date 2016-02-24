@@ -13,12 +13,20 @@ public class GeneralNodeContent extends OutlineNodeContent {
 
 	@SuppressWarnings("unchecked")
 	public TreeNode createTreeNode(Parser parser) {
-		TreeNode treeNode = new TreeNode(label, owner.getRegion().getOffset(), owner.getRegion().getLength());
+		TreeNode treeNode = new TreeNode(owner, label, owner.getRegion().getOffset(), owner.getRegion().getLength());
 		
+		addChildNodes(parser, treeNode);
+		
+		return treeNode;
+	}
+
+	protected void addChildNodes(Parser parser, TreeNode treeNode) {
 		for (OutlineNode<? extends OutlineNodeContent> node : owner.getAllChildren()) {
 			treeNode.addChild(node.createTreeNode(parser));
 		}
-		
-		return treeNode;
+	}
+	
+	public String toString() {
+		return super.toString() + ": " + label;
 	}
 }

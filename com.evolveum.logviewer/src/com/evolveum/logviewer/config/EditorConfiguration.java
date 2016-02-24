@@ -58,6 +58,10 @@ public class EditorConfiguration {
 			}
 			levelNumber++;
 		}
+		System.out.println("Outline level definitions (" + outlineLevelDefinitions.size() + "):");
+		if (rootOutlineLevelDefinition != null) {
+			rootOutlineLevelDefinition.dumpAll();
+		}
 	}
 
 	public OutlineLevelDefinition<? extends OutlineNodeContent> getRootOutlineInstruction() {
@@ -90,6 +94,29 @@ public class EditorConfiguration {
 
 	public String getSummary() {
 		return errorInstructions.size() + " error instruction(s)";
+	}
+
+	public List<OutlineLevelDefinition<? extends OutlineNodeContent>> getOutlineLevelDefinitions(int level) {
+		List<OutlineLevelDefinition<? extends OutlineNodeContent>> rv = new ArrayList<>();
+		for (OutlineLevelDefinition<? extends OutlineNodeContent> def : outlineLevelDefinitions) {
+			if (def.getLevel() == level) {
+				rv.add(def);
+			}
+		}
+		return rv;
+	}
+
+	public Integer getNextOutlineLevel(int level) {
+		
+		OutlineLevelDefinition<? extends OutlineNodeContent> def = rootOutlineLevelDefinition;
+		while (def != null) {
+			if (def.getLevel() > level) {
+				return def.getLevel();
+			}
+			def = def.getNextLevelDefinition();
+		}
+		return null;
+		
 	}
 
 }

@@ -5,18 +5,21 @@ import com.evolveum.logviewer.tree.OutlineNodeContent;
 
 public class MatchResult<C extends OutlineNodeContent> {
 
-	final private OutlineNode<C> newDocumentItem;
+	final private OutlineNode[] newNodes;
 
-	public MatchResult() {
-		this.newDocumentItem = null;
-	}
-	
-	public MatchResult(OutlineNode<C> newDocumentItem) {
-		this.newDocumentItem = newDocumentItem;
+	public MatchResult(OutlineNode... newNodes) {
+		this.newNodes = newNodes;
 	}
 
-	public OutlineNode<C> getNewDocumentItem() {
-		return newDocumentItem;
+	public OutlineNode<?> addNodesIntoChain(OutlineNode currentNode) {
+		OutlineNode parent = currentNode.getParent();
+		for (OutlineNode newNode : newNodes) {
+			newNode.setParent(parent);
+			newNode.setPreviousSibling(currentNode);
+			currentNode.setNextSibling(newNode);
+			currentNode = newNode;
+		}
+		return currentNode;
 	}
 	
 	
