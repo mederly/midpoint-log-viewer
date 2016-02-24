@@ -199,6 +199,33 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		}
 		return rv;
 	}
+	
+	//@SuppressWarnings("unchecked")
+	public List<OutlineNode<?>> getAllChildrenRecursive(Class<? extends OutlineNodeContent>... contentClasses) {
+		List<OutlineNode<?>> rv = new ArrayList<>();
+		addAllChildrenRecursive(rv, contentClasses);
+		return rv;
+	}
+	
+	public void addAllChildrenRecursive(List<OutlineNode<?>> list, Class<? extends OutlineNodeContent>... contentClasses) {
+		OutlineNode<?> child = firstChild;
+		while (child != null) {
+			if (contentClasses.length == 0) {
+				list.add((OutlineNode<?>) child);
+				child.addAllChildrenRecursive(list, contentClasses);
+			} else if (child.getContent() != null) {
+				for (Class<? extends OutlineNodeContent> contentClass : contentClasses) {
+					if (contentClass.isAssignableFrom(child.getContent().getClass())) {
+						list.add((OutlineNode<?>) child);
+						child.addAllChildrenRecursive(list, contentClasses);
+						break;
+					}
+				}
+			}
+			child = child.nextSibling;
+		}
+	}
+
 
 	private TreeNode cachedTreeNode;
 	

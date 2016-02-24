@@ -35,13 +35,13 @@ public class ContextNodeContent extends OutlineNodeContent {
 		
 		OutlineNode<ContextNodeContent> owner = (OutlineNode<ContextNodeContent>) getOwner();
 		
-		List<OutlineNode<ProjectionContextNodeContent>> projectionContexts = owner.getAllChildren(ProjectionContextNodeContent.class);
-		for (OutlineNode<ProjectionContextNodeContent> projectionContext : projectionContexts) {
-			children.add(projectionContext.createTreeNode(parser));
-		}
+		List<OutlineNode<ProjectionContextNodeContent>> projectionContexts = (List) owner.getAllChildrenRecursive(ProjectionContextNodeContent.class);
+//		for (OutlineNode<ProjectionContextNodeContent> projectionContext : projectionContexts) {
+//			children.add(projectionContext.createTreeNode(parser));
+//		}
 
 		int mappings = 0, executions = 0;
-		for (OutlineNode<?> item : owner.getAllChildren()) {
+		for (OutlineNode<?> item : owner.getAllChildrenRecursive()) {
 			if (item.getContent() == null) {
 				continue; // shouldn't occur
 			}
@@ -57,7 +57,7 @@ public class ContextNodeContent extends OutlineNodeContent {
 				System.err.println("Problem - neither mapping nor execution: " + item);
 			}
 
-			children.add(item.getContent().createTreeNode(parser));
+//			children.add(item.getContent().createTreeNode(parser));
 		}
 		
 		//children.addAll(parser.scriptsAndExpressions);	// shouldn't be any
@@ -76,7 +76,9 @@ public class ContextNodeContent extends OutlineNodeContent {
 		}
 		
 		TreeNode treeNode = new TreeNode(owner, label, owner.getRegion());
-		treeNode.addChildren(children);
+		
+		//treeNode.addChildren(children);
+		addChildNodes(parser, treeNode);
 		return treeNode;
 	}
 

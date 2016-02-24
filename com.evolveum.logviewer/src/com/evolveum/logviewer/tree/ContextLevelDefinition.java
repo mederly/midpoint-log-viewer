@@ -7,7 +7,6 @@ import org.eclipse.jface.text.IRegion;
 import com.evolveum.logviewer.config.EditorConfiguration;
 import com.evolveum.logviewer.editor.DocumentUtils;
 import com.evolveum.logviewer.parsing.MatchResult;
-import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class ContextLevelDefinition extends OutlineLevelDefinition<ContextNodeContent> {
 
@@ -16,16 +15,14 @@ public class ContextLevelDefinition extends OutlineLevelDefinition<ContextNodeCo
 	}
 
 	@Override
-	public MatchResult<ContextNodeContent> matches(OutlineNode<ContextNodeContent> outlineNode, int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public MatchResult<ContextNodeContent> matches(OutlineNode<ContextNodeContent> existingNode, int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
 
-		boolean newLine;
 		if (line.contains("---[ SYNCHRONIZATION")) {
 			line = line.substring(line.indexOf("---["));
-			newLine = false;
 		} else if (line.startsWith("---[ PROJECTOR") || 
 				line.startsWith("---[ CLOCKWORK") ||
 				line.startsWith("---[ preview")) {
-			newLine = true;
+			// continue
 		} else {
 			return null;
 		}
@@ -38,18 +35,7 @@ public class ContextLevelDefinition extends OutlineLevelDefinition<ContextNodeCo
 		//content.setLabelSuffix(ParsingUtils.suffix(document, lineNumber, newLine));
 		content.setLabelSuffix("");
 		
-		if (outlineNode.getContent() == null) {
-			outlineNode.setCoordinates(region, lineNumber, line, document);
-			outlineNode.setContent(content);
-			OutlineNode<ContextNodeContent> newNode = new OutlineNode<ContextNodeContent>(editorConfiguration, this.getLevel());
-			return new MatchResult<>(newNode);			
-		} else {
-			OutlineNode<ContextNodeContent> newNode0 = new OutlineNode<ContextNodeContent>(editorConfiguration, this.getLevel());
-			newNode0.setContent(content);
-			newNode0.setCoordinates(region, lineNumber, line, document);
-			OutlineNode<SummaryNodeContent> newNode = new OutlineNode<SummaryNodeContent>(editorConfiguration, this.getLevel());
-			return new MatchResult<>(newNode0, newNode);
-		}
+		return createMatchResult(existingNode, content, region, lineNumber, line, document);
 	}
 
 	public boolean isHeaderLast() {

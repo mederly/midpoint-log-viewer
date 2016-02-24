@@ -13,7 +13,10 @@ import com.evolveum.logviewer.editor.DocumentUtils;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.parsing.ParsingUtils;
 import com.evolveum.logviewer.tree.ContextLevelDefinition;
+import com.evolveum.logviewer.tree.ExpressionLevelDefinition;
 import com.evolveum.logviewer.tree.GeneralLevelDefinition;
+import com.evolveum.logviewer.tree.MappingLevelDefinition;
+import com.evolveum.logviewer.tree.ProjectionContextLevelDefinition;
 import com.evolveum.logviewer.tree.SummaryLevelDefinition;
 
 public class ConfigurationParser {
@@ -184,6 +187,12 @@ public class ConfigurationParser {
 				config.addOutlineInstruction(SummaryLevelDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%outline operation-context")) {
 				config.addOutlineInstruction(ContextLevelDefinition.parseFromLine(config, line));
+			} else if (line.startsWith("%outline projection-context")) {
+				config.addOutlineInstruction(ProjectionContextLevelDefinition.parseFromLine(config, line));
+			} else if (line.startsWith("%outline mapping")) {
+				config.addOutlineInstruction(MappingLevelDefinition.parseFromLine(config, line));
+			} else if (line.startsWith("%outline expression")) {
+				config.addOutlineInstruction(ExpressionLevelDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%outline")) {
 				config.addOutlineInstruction(GeneralLevelDefinition.parseFromLine(config, line));
 			}

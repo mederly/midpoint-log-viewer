@@ -23,18 +23,8 @@ public class SummaryLevelDefinition extends OutlineLevelDefinition<SummaryNodeCo
 			int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
 		if (line.startsWith("###[ CLOCKWORK SUMMARY")) {
 			SummaryNodeContent summaryNodeContent = new SummaryNodeContent();
-			if (outlineItem.getContent() == null) {
-				outlineItem.setContent(summaryNodeContent);
-				outlineItem.setCoordinates(region, lineNumber, line, document);
-				OutlineNode<SummaryNodeContent> node = new OutlineNode<SummaryNodeContent>(editorConfiguration, this.getLevel());
-				return new MatchResult<>(node);
-			} else {
-				OutlineNode<SummaryNodeContent> node0 = new OutlineNode<SummaryNodeContent>(editorConfiguration, this.getLevel());
-				node0.setContent(summaryNodeContent);
-				node0.setCoordinates(region, lineNumber, line, document);
-				OutlineNode<SummaryNodeContent> node = new OutlineNode<SummaryNodeContent>(editorConfiguration, this.getLevel());
-				return new MatchResult<>(node0, node);
-			}
+			summaryNodeContent.setDefaultLabel("### Execution summary ###");
+			return createMatchResult(outlineItem, summaryNodeContent, region, lineNumber, line, document);
 		} else {
 			return null;
 		}

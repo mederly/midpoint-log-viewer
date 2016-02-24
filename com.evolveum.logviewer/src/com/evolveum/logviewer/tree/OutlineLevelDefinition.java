@@ -70,4 +70,36 @@ public abstract class OutlineLevelDefinition<C extends OutlineNodeContent> {
 	public EditorConfiguration getEditorConfiguration() {
 		return editorConfiguration;
 	}
+	
+	protected MatchResult<C> createMatchResult(OutlineNode<C> existingNode,
+			C content, IRegion region, int lineNumber, String line, IDocument document) {
+		if (isHeaderLast()) {
+			return createMatchResultHeaderLast(existingNode, content, region, lineNumber, line, document);
+		} else {
+			return createMatchResultHeaderFirst(existingNode, content, region, lineNumber, line, document);
+		}
+	}
+	
+	protected MatchResult<C> createMatchResultHeaderLast(OutlineNode<C> existingNode,
+			C content, IRegion region, int lineNumber, String line, IDocument document) {
+		if (existingNode.getContent() == null) {
+			existingNode.setContent(content);
+			existingNode.setCoordinates(region, lineNumber, line, document);
+			OutlineNode<C> node = new OutlineNode<C>(editorConfiguration, this.getLevel());
+			return new MatchResult<>(node);
+		} else {
+			OutlineNode<C> node0 = new OutlineNode<C>(editorConfiguration, this.getLevel());
+			node0.setContent(content);
+			node0.setCoordinates(region, lineNumber, line, document);
+			OutlineNode<C> node = new OutlineNode<C>(editorConfiguration, this.getLevel());
+			return new MatchResult<>(node0, node);
+		}
+	}
+	
+	protected MatchResult<C> createMatchResultHeaderFirst(OutlineNode<C> existingNode,
+			C content, IRegion region, int lineNumber, String line, IDocument document) {
+		OutlineNode<C> node = new OutlineNode<>(this, content, region, lineNumber, line, document);
+		return new MatchResult<>(node);
+	}
+
 }

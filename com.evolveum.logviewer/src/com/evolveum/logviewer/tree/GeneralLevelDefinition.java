@@ -91,22 +91,23 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 	}
 
 	@Override
-	public MatchResult<GeneralNodeContent> matches(OutlineNode<GeneralNodeContent> documentItem, int lineNumber, String line, IRegion region, IDocument document) {
+	public MatchResult<GeneralNodeContent> matches(OutlineNode<GeneralNodeContent> existingNode, int lineNumber, String line, IRegion region, IDocument document) {
 		if (text != null) {
 			if (line.contains(text)) {
-				return createResult(lineNumber, line, region, document, null);
+				return createResult(existingNode, lineNumber, line, region, document, null);
 			}
 		} else if (pattern != null) {
 			Matcher matcher = pattern.matcher(line);
 			if (matcher.matches()) {
-				return createResult(lineNumber, line, region, document, matcher);
+				return createResult(existingNode, lineNumber, line, region, document, matcher);
 			}
 		}
 		return null;
 	}
 	
 
-	private MatchResult<GeneralNodeContent> createResult(int lineNumber, String line, IRegion region, IDocument document, Matcher matcher) {
+	private MatchResult<GeneralNodeContent> createResult(OutlineNode<GeneralNodeContent> existingNode, int lineNumber, 
+			String line, IRegion region, IDocument document, Matcher matcher) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < label.length(); i++) {
 			if (label.charAt(i) != '%') {
@@ -149,8 +150,7 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 		}
 		GeneralNodeContent content = new GeneralNodeContent(sb.toString());
 		
-		OutlineNode<GeneralNodeContent> node = new OutlineNode<>(this, content, region, lineNumber, line, document);
-		return new MatchResult<>(node);
+		return createMatchResult(existingNode, content, region, lineNumber, line, document);
 	}
 	
 	@Override
