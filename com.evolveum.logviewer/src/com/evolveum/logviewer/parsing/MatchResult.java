@@ -8,6 +8,9 @@ public class MatchResult<C extends OutlineNodeContent> {
 	final private OutlineNode[] newNodes;
 
 	public MatchResult(OutlineNode... newNodes) {
+		if (newNodes.length == 0) {
+			throw new IllegalStateException("No nodes in MatchResult");
+		}
 		this.newNodes = newNodes;
 	}
 
@@ -21,8 +24,4 @@ public class MatchResult<C extends OutlineNodeContent> {
 		}
 		return currentNode;
 	}
-	
-	
-	
-	
 }

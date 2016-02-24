@@ -35,7 +35,8 @@ public class ContextLevelDefinition extends OutlineLevelDefinition<ContextNodeCo
 		//content.setLabelSuffix(ParsingUtils.suffix(document, lineNumber, newLine));
 		content.setLabelSuffix("");
 		
-		return createMatchResult(existingNode, content, region, lineNumber, line, document);
+		MatchResult<ContextNodeContent> result = createMatchResult(existingNode, content, region, lineNumber, line, document);
+		return result;
 	}
 
 	public boolean isHeaderLast() {

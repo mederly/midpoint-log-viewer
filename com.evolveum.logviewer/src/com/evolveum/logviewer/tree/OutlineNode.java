@@ -60,6 +60,10 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		return levelDefinition;
 	}
 	
+	public int getLevel() {
+		return level;
+	}
+	
 	public C getContent() {
 		return content;
 	}

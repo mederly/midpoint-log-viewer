@@ -42,22 +42,6 @@ public class Parser {
 	private final OutlineNode<? extends OutlineNodeContent> firstOutlineNode;
 	private OutlineNode<? extends OutlineNodeContent> currentOutlineNode;
 
-//	// ContextDump that was lastly created
-//	private ContextDumpItem lastContextDump = null;
-//	
-//	// ContextDump we are currently physically in - the next log line sets this to null
-//	private ContextDumpItem currentContextDump = null;
-//	
-//	// scripts and expressions will be aggregated into following mapping
-//	// there are exceptions, however - like expressions in notifications
-//	private List<DocumentItem> scriptsAndExpressions = new ArrayList<>();
-//	
-//	// mappings and "going to execution" items are aggregated into the following context dump
-//	private List<DocumentItem> mappingsAndExecutions = new ArrayList<>();
-	
-	
-	
-	
 	public List<Position> foldingRegions = new ArrayList<Position>();
 	
 	Map<String,OidInfo> discoveredOidInfos = new HashMap<>();
@@ -105,7 +89,6 @@ public class Parser {
 				if (currentOutlineNode != null && currentOutlineNode.parseLine(lineNumber, line, region, document)) {
 					currentOutlineNode = currentOutlineNode.getLastSibling();
 				}
-
 //				if (line.contains("---[ SYNCHRONIZATION")) {
 //					line = line.substring(line.indexOf("---["));
 //					onContextDumpStart(lineNumber, line, region, false); 
