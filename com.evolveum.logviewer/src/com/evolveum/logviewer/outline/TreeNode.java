@@ -144,7 +144,7 @@ public class TreeNode {
 	public static void removeEmptyRoots(List<TreeNode> nodes, TreeNode parent) {
 		for (int i = 0; i < nodes.size(); i++) {
 			TreeNode tn = nodes.get(i);
-			if (tn.hasEmptyRoot()) {
+			while (tn.hasEmptyRoot()) {
 				nodes.remove(i);
 				int restartAt = i;
 				for (TreeNode tn1 : tn.children) {

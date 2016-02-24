@@ -19,7 +19,7 @@ public class ProjectionContextLevelDefinition extends OutlineLevelDefinition<Pro
 			return null;
 		}
 		ProjectionContextNodeContent content = new ProjectionContextNodeContent();
-		content.setDefaultLabel(line);
+		content.setDefaultLabel(line.substring(4));
 		return createMatchResult(existingNode, content, region, lineNumber, line, document);
 	}
 

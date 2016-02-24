@@ -17,6 +17,7 @@ import com.evolveum.logviewer.tree.ExpressionLevelDefinition;
 import com.evolveum.logviewer.tree.GeneralLevelDefinition;
 import com.evolveum.logviewer.tree.MappingLevelDefinition;
 import com.evolveum.logviewer.tree.ProjectionContextLevelDefinition;
+import com.evolveum.logviewer.tree.ScriptLevelDefinition;
 import com.evolveum.logviewer.tree.SummaryLevelDefinition;
 
 public class ConfigurationParser {
@@ -183,6 +184,10 @@ public class ConfigurationParser {
 				config.setWarningIfDelay(parseProblemIfDelay(line));
 			} else if (line.startsWith("%info-if-delay")) {
 				config.setInfoIfDelay(parseProblemIfDelay(line));
+			} else if (line.startsWith("%outline startup")) {
+				config.addOutlineInstruction(GeneralLevelDefinition.parseFromLineAsStartupDefinition(config, line));
+			} else if (line.startsWith("%outline test")) {
+				config.addOutlineInstruction(GeneralLevelDefinition.parseFromLineAsTestDefinition(config, line));
 			} else if (line.startsWith("%outline operation-summary")) {
 				config.addOutlineInstruction(SummaryLevelDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%outline operation-context")) {
@@ -193,7 +198,9 @@ public class ConfigurationParser {
 				config.addOutlineInstruction(MappingLevelDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%outline expression")) {
 				config.addOutlineInstruction(ExpressionLevelDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline")) {
+			} else if (line.startsWith("%outline script")) {
+				config.addOutlineInstruction(ScriptLevelDefinition.parseFromLine(config, line));
+			} else if (line.startsWith("%outline custom")) {
 				config.addOutlineInstruction(GeneralLevelDefinition.parseFromLine(config, line));
 			}
 		}

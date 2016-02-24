@@ -35,37 +35,20 @@ public class ContextNodeContent extends OutlineNodeContent {
 		
 		OutlineNode<ContextNodeContent> owner = (OutlineNode<ContextNodeContent>) getOwner();
 		
-		List<OutlineNode<ProjectionContextNodeContent>> projectionContexts = (List) owner.getAllChildrenRecursive(ProjectionContextNodeContent.class);
-//		for (OutlineNode<ProjectionContextNodeContent> projectionContext : projectionContexts) {
-//			children.add(projectionContext.createTreeNode(parser));
-//		}
+		int projectionContextsCount = owner.getAllChildrenRecursive(ProjectionContextNodeContent.class).size();
 
-		int mappings = 0, executions = 0;
+		int mappingsCount = 0, executionsCount = 0;
 		for (OutlineNode<?> item : owner.getAllChildrenRecursive()) {
-			if (item.getContent() == null) {
-				continue; // shouldn't occur
-			}
-			if (item.getContent() instanceof ProjectionContextNodeContent) {
-				continue; // already processed
-			}
-			
 			if (item.getContent() instanceof MappingNodeContent) {
-				mappings++;
+				mappingsCount++;
 			} else if (item.getContent() instanceof ExecutionNodeContent) {
-				executions++;
-			} else {
-				System.err.println("Problem - neither mapping nor execution: " + item);
+				executionsCount++;
 			}
-
-//			children.add(item.getContent().createTreeNode(parser));
 		}
 		
-		//children.addAll(parser.scriptsAndExpressions);	// shouldn't be any
-		
 		String label = "Wave: " + execWave + " : " + projWave + 
-				" - P:" + projectionContexts.size() + ", M:" + mappings + 
-				//(executions > 0 ? ", EXEC: " + executions : "") +
-				(executions > 0 ? " # " : " - ") + 
+				" - P:" + projectionContextsCount + ", M:" + mappingsCount + 
+				(executionsCount > 0 ? " # " : " - ") + 
 				labelCore + labelSuffix;
 
 		OutlineNode<ContextNodeContent> first = getFirstDump();
@@ -76,9 +59,18 @@ public class ContextNodeContent extends OutlineNodeContent {
 		}
 		
 		TreeNode treeNode = new TreeNode(owner, label, owner.getRegion());
-		
-		//treeNode.addChildren(children);
-		addChildNodes(parser, treeNode);
+
+		// projection contexts first!
+		for (OutlineNode<ProjectionContextNodeContent> node : owner.getAllChildren(ProjectionContextNodeContent.class)) {
+			children.add(node.createTreeNode(parser));
+		}
+		for (OutlineNode<?> node : owner.getAllChildren()) {
+			if (node.getContent() instanceof ProjectionContextNodeContent) {
+				continue;
+			}
+			children.add(node.createTreeNode(parser));			
+		}
+
 		return treeNode;
 	}
 

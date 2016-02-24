@@ -24,7 +24,13 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 	public static GeneralLevelDefinition parseFromLine(EditorConfiguration editorConfiguration, String line) {
 		line = line.trim();
 		
-		int space1 = line.indexOf(' ');
+		int space0 = line.indexOf(' ');
+		if (space0 < 0) {
+			System.out.println("Couldn't parse outline instruction: " + line);
+			return null;
+		}
+		
+		int space1 = line.indexOf(' ', space0+1);
 		if (space1 < 0) {
 			System.out.println("Couldn't parse outline instruction: " + line);
 			return null;
@@ -53,12 +59,7 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 		String string1 = line.substring(space2+2, nextSeparator);
 		if (separator == '/') {
 			rv.regexp = string1;
-			try {
-				rv.pattern = Pattern.compile(rv.regexp);
-			} catch (RuntimeException e) {
-				System.err.println("Couldn't compile regexp '" + rv.regexp + "': " + e.getMessage());
-				e.printStackTrace();
-			}
+			rv.compileRegexp();
 		} else {
 			rv.text = string1;
 		}
@@ -72,6 +73,15 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 		rv.label = line.substring(nextSeparator+3, nextSeparator2);
 				
 		return rv;		
+	}
+
+	private void compileRegexp() {
+		try {
+			pattern = Pattern.compile(regexp);
+		} catch (RuntimeException e) {
+			System.err.println("Couldn't compile regexp '" + regexp + "': " + e.getMessage());
+			e.printStackTrace();
+		}
 	}
 
 	public String getText() {
@@ -160,6 +170,23 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 	
 	public String toString() {
 		return super.toString() + "; label: " + label;
+	}
+	
+	public static OutlineLevelDefinition<?> parseFromLineAsStartupDefinition(EditorConfiguration editorConfiguration, String line) {
+		GeneralLevelDefinition def = new GeneralLevelDefinition(editorConfiguration);
+		def.parseLevelFromLine(line);
+		def.text = "Product information : http://wiki.evolveum.com/display/midPoint";
+		def.label = "=========> System startup at %d <=========";
+		return def;
+	}
+
+	public static OutlineLevelDefinition<?> parseFromLineAsTestDefinition(EditorConfiguration editorConfiguration, String line) {
+		GeneralLevelDefinition def = new GeneralLevelDefinition(editorConfiguration);
+		def.parseLevelFromLine(line);
+		def.regexp = ".*=====\\[\\ (\\w+\\.\\w+)\\ \\]======================================.*";
+		def.compileRegexp();
+		def.label = "TEST: %1g";
+		return def;
 	}
 
 }
