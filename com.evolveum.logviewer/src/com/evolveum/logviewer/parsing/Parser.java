@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,7 +29,7 @@ import com.evolveum.logviewer.config.OidInfo;
 import com.evolveum.logviewer.config.ThreadInfo;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.outline.TreeNode;
-import com.evolveum.logviewer.tree.OutlineLevelDefinition;
+import com.evolveum.logviewer.tree.OutlineNodeDefinition;
 import com.evolveum.logviewer.tree.OutlineNode;
 import com.evolveum.logviewer.tree.OutlineNodeContent;
 
@@ -39,9 +41,8 @@ public class Parser {
 	
 	private final EditorConfiguration configuration;
 	
-	private final OutlineNode<? extends OutlineNodeContent> firstOutlineNode;
-	private OutlineNode<? extends OutlineNodeContent> currentOutlineNode;
-
+	private final TreeMap<Integer,OutlineNode<?>> outlineNodesMap = new TreeMap<>();
+	
 	public List<Position> foldingRegions = new ArrayList<Position>();
 	
 	Map<String,OidInfo> discoveredOidInfos = new HashMap<>();
@@ -61,69 +62,89 @@ public class Parser {
 		this.numberOfLines = document.getNumberOfLines();
 		this.configuration = ConfigurationParser.getConfiguration(document);
 		this.componentNames = configuration.componentNames;
-		OutlineLevelDefinition<? extends OutlineNodeContent> rootOutlineInstruction = configuration.getRootOutlineInstruction();
-		if (rootOutlineInstruction != null) {
-			this.firstOutlineNode = new OutlineNode(configuration, rootOutlineInstruction.getLevel());
-			this.currentOutlineNode = this.firstOutlineNode;
-		} else {
-			this.firstOutlineNode = null;
-		}
 	}
 	
-	public void parse() {
+	public void parse() throws BadLocationException {
+		
+		final List<OutlineNodeDefinition<?>> nodeDefinitions = configuration.getAllOutlineLevelDefinitions();
+		
 		for (int lineNumber = 0; lineNumber < numberOfLines; lineNumber++) {
-			try {
-				IRegion region = document.getLineInformation(lineNumber);
-				String line = getLine(document, region);
+			
+			IRegion region = document.getLineInformation(lineNumber);
+			String line = getLine(document, region);
 
-				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || hasConfigSection) {
-					onConfigLine(lineNumber, line, region);
-					continue;
-				}
+			if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || hasConfigSection) {
+				onConfigLine(lineNumber, line, region);
+				continue;
+			}
 
-				onAnyLine(lineNumber, line, region);
-				if (ParsingUtils.isLogEntryStart(line)) {
-					onLogEntryLine(lineNumber, line, region);
+			onAnyLine(lineNumber, line, region);
+			if (ParsingUtils.isLogEntryStart(line)) {
+				onLogEntryLine(lineNumber, line, region);
+			}
+
+			for (OutlineNodeDefinition<?> nodeDefinition : nodeDefinitions) {
+				OutlineNodeContent content = nodeDefinition.recognize(lineNumber, line, region, document);
+				if (content != null) {
+					OutlineNode<?> node = new OutlineNode(nodeDefinition, content, region, lineNumber, line, document);
+					outlineNodesMap.put(lineNumber, node);
 				}
-				
-				if (currentOutlineNode != null && currentOutlineNode.parseLine(lineNumber, line, region, document)) {
-					currentOutlineNode = currentOutlineNode.getLastSibling();
-				}
-//				if (line.contains("---[ SYNCHRONIZATION")) {
-//					line = line.substring(line.indexOf("---["));
-//					onContextDumpStart(lineNumber, line, region, false); 
-//				} else if () {
-//					parser.onContextDumpStart(lineNumber, line, region, true);
-//				if (line.startsWith("---[ SCRIPT")) {
-//					onScriptStart(lineNumber, line, region);
-//				} else if (line.startsWith("---[ EXPRESSION")) {
-//					onExpressionStart(lineNumber, line, region);					
-//				} else if (line.startsWith("---[ MAPPING")) {
-//					onMappingStart(lineNumber, line, region);					
-//				} else if (line.startsWith("    PROJECTION ShadowType Discr")) {
-//					onProjectionContextDumpStart(lineNumber, line, region);
-//				} else if (line.startsWith("---[ Going to EXECUTE")) {
-//					onGoingToExecute(lineNumber, line, region);		
-//				} else if () {
-//					onClockworkSummary(lineNumber, line, region);
-//				} else if (line.startsWith("---[")) {
-//					onMappingStart(lineNumber, line, region);		// temporary solution					
-//				} 
-			} catch (BadLocationException e) {
-				System.err.println("Couldn't parse line #" + lineNumber + ": " + e);
 			}
 		}
-		try {
-			dumpInfo();
-		} catch (BadLocationException e) {
-			System.err.println("Couldn't dump info: " + e);
-		}
 		
-		if (firstOutlineNode != null) {
-			firstOutlineNode.dumpAll(this);
+		dumpOutlineNodesMap();
+		
+		sortOutlineNodes();
+		dumpInfoToConfigSection();
+		
+//		if (firstOutlineNode != null) {
+//			firstOutlineNode.dumpAll(this);
+//		}
+	}
+
+	private void dumpOutlineNodesMap() {
+		for (Map.Entry<Integer, OutlineNode<?>> entry : outlineNodesMap.entrySet()) {
+			System.out.println(entry.getKey() + " -> " + entry.getValue());
+		}
+	}
+
+	private void sortOutlineNodes() {
+		for (int level = 1; level <= configuration.getNumberOfLevels(); level++) {
+			sortOutlineNodes(outlineNodesMap, level);
+		}
+		OutlineNode.createTreePositions(null, outlineNodesMap);
+	}
+
+	private void sortOutlineNodes(TreeMap<Integer,OutlineNode<?>> nodesToProcess, int level) {
+		
+		if (nodesToProcess.isEmpty()) {
+			return;
+		}
+
+		int currentLine = -1;		
+		for (;;) {
+			
+			final Map.Entry<Integer, OutlineNode<?>> currentEntry = nodesToProcess.higherEntry(currentLine);
+			if (currentEntry == null) {
+				break;
+			}
+			final int currentNodeLevel = currentEntry.getValue().getLevel();
+			if (currentNodeLevel > level) {
+				currentLine = currentEntry.getKey();
+			} else if (currentNodeLevel < level) {
+				// was already processed; process its children
+				sortOutlineNodes(currentEntry.getValue().getContentMap(), level);
+				currentLine = currentEntry.getKey();
+			} else {
+				final OutlineNode<?> currentNode = currentEntry.getValue();
+				int continueAfter = currentNode.createContentMap(nodesToProcess);
+				nodesToProcess.keySet().removeAll(currentNode.getContentMap().keySet());
+				currentLine = continueAfter;
+			}
 		}
 	}
 	
+
 	private Long lastTimestamp = null;
 	
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
@@ -400,7 +421,7 @@ public class Parser {
 		return indent;
 	}
 
-	public void dumpInfo() throws BadLocationException {
+	public void dumpInfoToConfigSection() throws BadLocationException {
 		StringBuilder sb = new StringBuilder();
 		
 		if (!hasConfigSection) {
@@ -537,16 +558,17 @@ public class Parser {
 	}
 
 	public TreeNode[] getTreeNodesAsArray() {
-		List<TreeNode> treeNodes = new ArrayList<>();
+		if (outlineNodesMap.isEmpty()) {
+			return new TreeNode[0];
+		}
 		
-		OutlineNode<? extends OutlineNodeContent> outlineNode = firstOutlineNode; 
-		while (outlineNode != null)	{
+		final List<TreeNode> treeNodes = new ArrayList<>();
+		for (OutlineNode<? extends OutlineNodeContent> outlineNode: outlineNodesMap.values()) { 
 			TreeNode tn = outlineNode.createTreeNode(this);
 			if (tn != null && !tn.isEmpty()) {
 				tn.removeEmptyChildren();
 				treeNodes.add(tn);
 			}
-			outlineNode = outlineNode.getNextSibling();
 		}
 		
 		TreeNode.removeEmptyRoots(treeNodes, null);
@@ -568,3 +590,38 @@ public class Parser {
 	}
 	
 }
+
+/*
+public boolean parseLine(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+
+for (OutlineLevelDefinition<? extends OutlineNodeContent> currentLevelDefinition : editorConfiguration.getOutlineLevelDefinitions(level)) {
+	MatchResult<C> result;
+	try {
+		result = (MatchResult<C>) currentLevelDefinition.matches((OutlineNode) this, lineNumber, line, region, document);
+	} catch (RuntimeException e) {
+		e.printStackTrace();
+		continue;
+	}
+	if (result != null) {
+		result.addNodesIntoChain(this);
+		return true;
+	}			
+}
+
+OutlineNode<?> lastChild;
+if (firstChild == null) {
+	Integer nextLevel = editorConfiguration.getNextOutlineLevel(level);
+	if (nextLevel == null) {
+		return false;
+	}
+	firstChild = new OutlineNode(editorConfiguration, nextLevel);
+	firstChild.setCoordinates(region, lineNumber, line, document);
+	firstChild.parent = this;
+	lastChild = firstChild;
+} else {
+	lastChild = getLastChild();
+}
+lastChild.parseLine(lineNumber, line, region, document);
+return false;
+}
+*/

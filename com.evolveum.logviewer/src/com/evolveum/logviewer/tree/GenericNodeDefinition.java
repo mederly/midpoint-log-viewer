@@ -7,12 +7,11 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
 import com.evolveum.logviewer.config.EditorConfiguration;
-import com.evolveum.logviewer.parsing.MatchResult;
 import com.evolveum.logviewer.parsing.ParsingUtils;
 
-public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeContent> {
+public class GenericNodeDefinition extends OutlineNodeDefinition<GenericNodeContent> {
 
-	public GeneralLevelDefinition(EditorConfiguration editorConfiguration) {
+	public GenericNodeDefinition(EditorConfiguration editorConfiguration) {
 		super(editorConfiguration);
 	}
 
@@ -21,7 +20,7 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 	private Pattern pattern;
 	private String label;
 	
-	public static GeneralLevelDefinition parseFromLine(EditorConfiguration editorConfiguration, String line) {
+	public static GenericNodeDefinition parseFromLine(EditorConfiguration editorConfiguration, String line) {
 		line = line.trim();
 		
 		int space0 = line.indexOf(' ');
@@ -47,10 +46,10 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 			return null;			
 		}
 		
-		GeneralLevelDefinition rv = new GeneralLevelDefinition(editorConfiguration);
+		GenericNodeDefinition rv = new GenericNodeDefinition(editorConfiguration);
 		
 		try {
-			rv.level = Integer.parseInt(line.substring(space1+1, space2));
+			rv.physicalLevel = Integer.parseInt(line.substring(space1+1, space2));
 		} catch (NumberFormatException e) {
 			System.out.println("Couldn't parse outline instruction: " + line + ": " + e);
 			return null;
@@ -101,23 +100,22 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 	}
 
 	@Override
-	public MatchResult<GeneralNodeContent> matches(OutlineNode<GeneralNodeContent> existingNode, int lineNumber, String line, IRegion region, IDocument document) {
+	public GenericNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) {
 		if (text != null) {
 			if (line.contains(text)) {
-				return createResult(existingNode, lineNumber, line, region, document, null);
+				return createResult(lineNumber, line, region, document, null);
 			}
 		} else if (pattern != null) {
 			Matcher matcher = pattern.matcher(line);
 			if (matcher.matches()) {
-				return createResult(existingNode, lineNumber, line, region, document, matcher);
+				return createResult(lineNumber, line, region, document, matcher);
 			}
 		}
 		return null;
 	}
 	
 
-	private MatchResult<GeneralNodeContent> createResult(OutlineNode<GeneralNodeContent> existingNode, int lineNumber, 
-			String line, IRegion region, IDocument document, Matcher matcher) {
+	private GenericNodeContent createResult(int lineNumber, String line, IRegion region, IDocument document, Matcher matcher) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < label.length(); i++) {
 			if (label.charAt(i) != '%') {
@@ -158,31 +156,31 @@ public class GeneralLevelDefinition extends OutlineLevelDefinition<GeneralNodeCo
 		if (sb.length() == 0) {
 			sb.append("<empty>");
 		}
-		GeneralNodeContent content = new GeneralNodeContent(sb.toString());
+		GenericNodeContent content = new GenericNodeContent(sb.toString());
 		
-		return createMatchResult(existingNode, content, region, lineNumber, line, document);
+		return content;
 	}
-	
+
 	@Override
-	public boolean isHeaderLast() {
-		return false;
+	public ContentSelectionStrategy getContentSelectionStrategy() {
+		return ContentSelectionStrategy.HEADER_FIRST;
 	}
 	
 	public String toString() {
 		return super.toString() + "; label: " + label;
 	}
 	
-	public static OutlineLevelDefinition<?> parseFromLineAsStartupDefinition(EditorConfiguration editorConfiguration, String line) {
-		GeneralLevelDefinition def = new GeneralLevelDefinition(editorConfiguration);
-		def.parseLevelFromLine(line);
+	public static OutlineNodeDefinition<?> parseFromLineAsStartupDefinition(EditorConfiguration editorConfiguration, String line) {
+		GenericNodeDefinition def = new GenericNodeDefinition(editorConfiguration);
+		def.parseFromLine(line);
 		def.text = "Product information : http://wiki.evolveum.com/display/midPoint";
 		def.label = "=========> System startup at %d <=========";
 		return def;
 	}
 
-	public static OutlineLevelDefinition<?> parseFromLineAsTestDefinition(EditorConfiguration editorConfiguration, String line) {
-		GeneralLevelDefinition def = new GeneralLevelDefinition(editorConfiguration);
-		def.parseLevelFromLine(line);
+	public static OutlineNodeDefinition<?> parseFromLineAsTestDefinition(EditorConfiguration editorConfiguration, String line) {
+		GenericNodeDefinition def = new GenericNodeDefinition(editorConfiguration);
+		def.parseFromLine(line);
 		def.regexp = ".*=====\\[\\ (\\w+\\.\\w+)\\ \\]======================================.*";
 		def.compileRegexp();
 		def.label = "TEST: %1g";

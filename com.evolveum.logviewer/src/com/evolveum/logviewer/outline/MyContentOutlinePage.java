@@ -48,14 +48,19 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 	        Control control = viewer.getControl();
 	        if (control != null && !control.isDisposed()) {
 	            control.setRedraw(false);
-	            TreeNode[] outlineInput = parseOutlineStructure();
-	            viewer.setInput(outlineInput);
+	            try {
+	            	TreeNode[] outlineInput = parseOutlineStructure();
+	            	viewer.setInput(outlineInput);
+	            } catch (BadLocationException|RuntimeException e) {
+	            	System.err.println("Couldn't parse outline structure: " + e);
+	            	e.printStackTrace();
+	            }
 	            control.setRedraw(true);
 	        }
 	    }
 	}
 
-	private TreeNode[] parseOutlineStructure() {
+	private TreeNode[] parseOutlineStructure() throws BadLocationException {
 		if (editorInput == null) {
 			return new TreeNode[0];
 		}

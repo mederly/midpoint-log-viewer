@@ -8,6 +8,8 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
+import com.evolveum.logviewer.editor.DocumentUtils;
+
 public class ParsingUtils {
 
 	public static boolean isLogEntryStart(String line) {
@@ -49,6 +51,18 @@ public class ParsingUtils {
 			}
 		}
 		return " " + date + " (#" + lineNumber + ")";
+	}
+
+	public static Integer findNextLogLine(IDocument document, int lineNumber) {
+		int total = document.getNumberOfLines();
+		while (lineNumber < total) {
+			String line = DocumentUtils.getLine(document, lineNumber);
+			if (isLogEntryStart(line)) {
+				return lineNumber;
+			}
+			lineNumber++;
+		}
+		return null;
 	}
 
 }
