@@ -161,8 +161,8 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 
 		TreeColumn cThread = new TreeColumn(tree, SWT.RIGHT);
 		cThread.setAlignment(SWT.LEFT);
-		cThread.setText("Line");
-		cThread.setWidth(120);
+		cThread.setText("Thread");
+		cThread.setWidth(200);
 		
 		viewer.setLabelProvider(new TreeLabelProvider());
 		viewer.setContentProvider(new TreeContentProvider());
