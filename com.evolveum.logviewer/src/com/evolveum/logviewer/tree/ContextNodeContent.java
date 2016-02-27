@@ -70,7 +70,7 @@ public class ContextNodeContent extends OutlineNodeContent {
 			}
 			children.add(node.createTreeNode(parser));			
 		}
-
+		treeNode.addChildren(children);
 		return treeNode;
 	}
 

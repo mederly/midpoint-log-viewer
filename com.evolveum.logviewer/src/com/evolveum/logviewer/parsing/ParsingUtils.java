@@ -39,6 +39,34 @@ public class ParsingUtils {
 			return null;
 		}
 	}
+	
+	public static String parseThread(String line, Boolean componentNames) {
+		int firstLeftBracket = line.indexOf('[');
+		if (firstLeftBracket < 0) {
+			return null;
+		}
+		
+		if (componentNames == null) {
+			componentNames = line.contains("] [");
+		}
+		
+		int threadLeftBracket;
+		if (!componentNames) {
+			threadLeftBracket = firstLeftBracket;
+		} else {
+			threadLeftBracket = line.indexOf('[', firstLeftBracket+1);
+			if (threadLeftBracket < 0) {
+				return null;
+			}
+		}
+		
+		int threadRightBracket = line.indexOf(']', threadLeftBracket+1);
+		if (threadRightBracket < 0) {
+			return null;
+		}
+		String threadName = line.substring(threadLeftBracket+1, threadRightBracket);
+		return threadName;
+	}
 
 	public static String suffix(IDocument document, int lineNumber, boolean newLine) throws BadLocationException {
 		String date = "?";

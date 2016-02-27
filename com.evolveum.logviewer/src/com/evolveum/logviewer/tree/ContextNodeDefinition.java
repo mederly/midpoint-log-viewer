@@ -35,28 +35,46 @@ public class ContextNodeDefinition extends OutlineNodeDefinition<ContextNodeCont
 				nextLogLine = document.getNumberOfLines();
 			}
 			
-			return new Result(availableNodes.subMap(startLine, true, nextLogLine, false), nextLogLine);
+			TreeMap<Integer, OutlineNode<?>> subNodes = new TreeMap<>(availableNodes.subMap(startLine, true, nextLogLine, false));
+			subNodes.remove(outlineNode.getStartLine());		// context dump node should not be in the result!
+			
+//			System.out.print("# ContextDumpCSS for line " + outlineNode.getStartLine() + " returned: ");
+//			if (subNodes.isEmpty()) {
+//				System.out.print("(empty map)");
+//			} else {
+//				System.out.print(subNodes.firstKey() + ".." + subNodes.lastKey());
+//			}
+//			System.out.println(", continuing after " + nextLogLine);
+			
+			return new Result(subNodes, nextLogLine);
 		}
 		
+	}
+
+	public static String recognizeLine(String line) {
+		if (line.contains("---[ SYNCHRONIZATION")) {
+			return line.substring(line.indexOf("---["));
+		} else if (line.startsWith("---[ PROJECTOR") || 
+				line.startsWith("---[ CLOCKWORK") ||
+				line.startsWith("---[ preview")) {
+			return line;
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public ContextNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
 
-		if (line.contains("---[ SYNCHRONIZATION")) {
-			line = line.substring(line.indexOf("---["));
-		} else if (line.startsWith("---[ PROJECTOR") || 
-				line.startsWith("---[ CLOCKWORK") ||
-				line.startsWith("---[ preview")) {
-			// continue
-		} else {
+		String lineContent = recognizeLine(line);
+		if (lineContent == null) {
 			return null;
 		}
 		
 		ContextNodeContent content = new ContextNodeContent();
 		String line2 = DocumentUtils.getLine(document, lineNumber+1);
 		content.parseWaveInfo(line2);
-		content.parseLabelCore(line);
+		content.parseLabelCore(lineContent);
 		content.setLabelSuffix("");
 		return content;
 	}

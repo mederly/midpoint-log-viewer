@@ -2,6 +2,7 @@ package com.evolveum.logviewer.tree;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -32,6 +33,7 @@ public class OutlineNode<C extends OutlineNodeContent> {
 	final private Integer line;
 	final private IRegion region;
 	final private Date date;
+	final private String thread;
 	final private IDocument document; 
 	
 	final private C content;
@@ -59,15 +61,16 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		this.region = region;
 		this.line = startLineNumber;
 		
-		final String dateLine;
+		final String logLine;
 		if (ParsingUtils.isLogEntryStart(line)) {
-			dateLine = line;
+			logLine = line;
 		} else if (startLineNumber > 1) {
-			dateLine = DocumentUtils.getLine(document, startLineNumber-1);
+			logLine = DocumentUtils.getLine(document, startLineNumber-1);
 		} else {
-			dateLine = null;
+			logLine = null;
 		}
-		date = ParsingUtils.parseDate(dateLine);
+		date = ParsingUtils.parseDate(logLine);
+		thread = ParsingUtils.parseThread(logLine, editorConfiguration.componentNames);
 		this.document = document;
 	}
 	
@@ -79,6 +82,10 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		return level;
 	}
 	
+	public String getThread() {
+		return thread;
+	}
+
 	public C getContent() {
 		return content;
 	}
@@ -203,7 +210,10 @@ public class OutlineNode<C extends OutlineNodeContent> {
 	
 	@Override
 	public String toString() {
-		return "OutlineNode [level=" + level + ", content=" + content + ", levelDefinition="
+		return "OutlineNode [level=" + level + 
+				", CMap" + (contentMap != null ? "+" : "-") + 
+				" TP" + (treePosition != null ? "+" : "-") + 
+				" content=" + content + ", levelDefinition="
 				+ nodeDefinition + ", startLine=" + line + ", date=" + date + "]";
 	}
 
@@ -257,8 +267,23 @@ public class OutlineNode<C extends OutlineNodeContent> {
 		ContentSelectionStrategy strategy = nodeDefinition.getContentSelectionStrategy();
 		Result result = strategy.computeContent(this, availableNodes);
 		contentMap = new TreeMap<>(result.getContent());
+		checkContentMap();
 		return result.getContinueParsingAfter();
 		
+	}
+
+	private void checkContentMap() {
+		Iterator<OutlineNode<?>> iterator = contentMap.values().iterator();
+		while (iterator.hasNext()) {
+			OutlineNode<?> child = iterator.next();
+			if (child.getLevel() <= this.getLevel()) {
+				System.err.println("Miscalculated child entry; it's level (" + child.getLevel() + ") is not greater than the level of this node (" + this.getLevel() + "). This node = " + this);
+				iterator.remove(); 							// return to parent level
+				if (child.getContentMap() == null) {		// very probably so
+					child.contentMap = new TreeMap<>();
+				}
+			}
+		}
 	}
 
 	public TreeMap<Integer, OutlineNode<?>> getContentMap() {

@@ -133,27 +133,36 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 		Tree tree = viewer.getTree();
 		tree.setHeaderVisible(true);
 		
-		TreeColumn column1 = new TreeColumn(tree, SWT.LEFT);
+		TreeColumn cLabel = new TreeColumn(tree, SWT.LEFT);
 		tree.setLinesVisible(true);
-		column1.setAlignment(SWT.LEFT);
-		column1.setText("Description");
-		column1.setWidth(600);
-		TreeColumn column2 = new TreeColumn(tree, SWT.RIGHT);
-		column2.setAlignment(SWT.LEFT);
-		column2.setText("Timestamp");
-		column2.setWidth(250);
-		TreeColumn column3 = new TreeColumn(tree, SWT.RIGHT);
-		column3.setAlignment(SWT.LEFT);
-		column3.setText("Line");
-		column3.setWidth(100);
-		TreeColumn column4 = new TreeColumn(tree, SWT.RIGHT);
-		column4.setAlignment(SWT.LEFT);
-		column4.setText("Delta");
-		column4.setWidth(100);
-		TreeColumn column5 = new TreeColumn(tree, SWT.RIGHT);
-		column5.setAlignment(SWT.LEFT);
-		column5.setText("From start");
-		column5.setWidth(100);
+		cLabel.setAlignment(SWT.LEFT);
+		cLabel.setText("Description");
+		cLabel.setWidth(600);
+		
+		TreeColumn cDate = new TreeColumn(tree, SWT.RIGHT);
+		cDate.setAlignment(SWT.LEFT);
+		cDate.setText("Timestamp");
+		cDate.setWidth(200);
+		
+		TreeColumn cDelta = new TreeColumn(tree, SWT.RIGHT);
+		cDelta.setAlignment(SWT.RIGHT);
+		cDelta.setText("Delta");
+		cDelta.setWidth(100);
+
+		TreeColumn cSum = new TreeColumn(tree, SWT.RIGHT);
+		cSum.setAlignment(SWT.RIGHT);
+		cSum.setText("From start");
+		cSum.setWidth(80);
+		
+		TreeColumn cLine = new TreeColumn(tree, SWT.RIGHT);
+		cLine.setAlignment(SWT.RIGHT);
+		cLine.setText("Line");
+		cLine.setWidth(80);
+
+		TreeColumn cThread = new TreeColumn(tree, SWT.RIGHT);
+		cThread.setAlignment(SWT.LEFT);
+		cThread.setText("Line");
+		cThread.setWidth(120);
 		
 		viewer.setLabelProvider(new TreeLabelProvider());
 		viewer.setContentProvider(new TreeContentProvider());

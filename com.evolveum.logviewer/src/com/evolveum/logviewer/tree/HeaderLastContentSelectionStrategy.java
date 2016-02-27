@@ -12,7 +12,7 @@ public class HeaderLastContentSelectionStrategy implements ContentSelectionStrat
 		int currentLine = outlineNode.getStartLine();
 		for (;;) {
 			Map.Entry<Integer, OutlineNode<?>> previousEntry = availableNodes.lowerEntry(currentLine);
-			if (previousEntry == null || previousEntry.getValue().getLevel() == thisLevel) {
+			if (previousEntry == null || previousEntry.getValue().getLevel() <= thisLevel) {
 				return new Result(availableNodes.subMap(currentLine, true, outlineNode.getStartLine(), false), outlineNode.getStartLine());
 			}
 			currentLine = previousEntry.getKey();

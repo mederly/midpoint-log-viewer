@@ -42,7 +42,7 @@ public class EditorConfiguration {
 			return;
 		}
 		
-		int levelNumber = getLowestLevel();
+		int levelNumber = getLowestPhysicalLevel();
 		
 		int remaining = outlineNodeDefinitions.size();
 		
@@ -75,7 +75,7 @@ public class EditorConfiguration {
 		getRootOutlineInstruction().dumpAll();
 	}
 
-	private Integer getLowestLevel() {
+	private Integer getLowestPhysicalLevel() {
 		int levelNumber = -1;
 		
 		for (OutlineNodeDefinition<? extends OutlineNodeContent> definition : outlineNodeDefinitions) {

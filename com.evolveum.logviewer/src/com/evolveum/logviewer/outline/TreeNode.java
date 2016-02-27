@@ -71,6 +71,14 @@ public class TreeNode {
 		}
 	}
 	
+	public String getThread() {
+		if (outlineNode != null) {
+			return outlineNode.getThread();
+		} else {
+			return null;
+		}
+	}
+	
 	public String getDelta() {
 		if (outlineNode != null) {
 			return outlineNode.getDelta();

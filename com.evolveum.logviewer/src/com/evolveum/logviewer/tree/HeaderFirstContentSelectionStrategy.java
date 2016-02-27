@@ -12,7 +12,7 @@ public class HeaderFirstContentSelectionStrategy implements ContentSelectionStra
 		int currentLine = outlineNode.getStartLine();
 		for (;;) {
 			Map.Entry<Integer, OutlineNode<?>> nextEntry = availableNodes.higherEntry(currentLine);
-			if (nextEntry == null || nextEntry.getValue().getLevel() == thisLevel) {
+			if (nextEntry == null || nextEntry.getValue().getLevel() <= thisLevel) {
 				return new Result(availableNodes.subMap(outlineNode.getStartLine(), false, currentLine, true), currentLine);
 			}
 			currentLine = nextEntry.getKey();

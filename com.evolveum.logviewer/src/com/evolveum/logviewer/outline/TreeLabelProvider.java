@@ -1,11 +1,20 @@
 package com.evolveum.logviewer.outline;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
 import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.ITableLabelProvider;
-import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.swt.graphics.Image;
 
 public class TreeLabelProvider implements ITableLabelProvider {
+	
+	public static final int LABEL = 0;
+	public static final int DATE = 1;
+	public static final int DELTA = 2;
+	public static final int SUM = 3;
+	public static final int LINE = 4;
+	public static final int THREAD = 5;
 
 	@Override
 	public String getColumnText(Object element, int columnIndex) {
@@ -14,11 +23,18 @@ public class TreeLabelProvider implements ITableLabelProvider {
 		}
 		TreeNode tn = (TreeNode) element;
 		switch (columnIndex) {
-		case 0: return tn.getLabel();
-		case 1: return String.valueOf(tn.getDate());
-		case 2: return String.valueOf(tn.getStartLine());
-		case 3: return tn.getDelta();
-		case 4: return tn.getSum();
+		case LABEL: return tn.getLabel();
+		case DATE: 
+			DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss,SSS");
+			if (tn.getDate() != null) { 
+				return format.format(tn.getDate());
+			} else {
+				return "";
+			}
+		case DELTA: return tn.getDelta();
+		case SUM: return tn.getSum();
+		case LINE: return String.valueOf(tn.getStartLine());
+		case THREAD: return tn.getThread();
 		}
 		return null;
 	}

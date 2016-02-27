@@ -5,6 +5,8 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
 import com.evolveum.logviewer.config.EditorConfiguration;
+import com.evolveum.logviewer.editor.DocumentUtils;
+import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class ProjectionContextNodeDefinition extends OutlineNodeDefinition<ProjectionContextNodeContent> {
 
@@ -17,6 +19,22 @@ public class ProjectionContextNodeDefinition extends OutlineNodeDefinition<Proje
 		if (!line.startsWith("    PROJECTION ShadowType Discr")) {
 			return null;
 		}
+		
+		// necessary condition - this projection context is part of a context dump!
+		int lineNumber1 = lineNumber;
+		while (--lineNumber1 >= 0) {
+			String line1 = DocumentUtils.getLine(document, lineNumber1);
+			if (ContextNodeDefinition.recognizeLine(line1) != null) {
+				break;
+			}
+			if (ParsingUtils.isLogEntryStart(line1)) {
+				return null;
+			}
+		}
+		if (lineNumber1 < 0) {
+			return null;
+		}
+		
 		ProjectionContextNodeContent content = new ProjectionContextNodeContent();
 		content.setDefaultLabel(line.substring(4));
 		return content;
