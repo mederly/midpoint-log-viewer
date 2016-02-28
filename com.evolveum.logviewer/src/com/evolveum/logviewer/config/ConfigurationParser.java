@@ -1,6 +1,9 @@
 package com.evolveum.logviewer.config;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
@@ -160,10 +163,15 @@ public class ConfigurationParser {
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 			return config;
+		} catch (RuntimeException e) {
+			System.err.println("Couldn't parse configuration.");
+			e.printStackTrace();
+			throw e;
 		}
 	}
 
 	private static int parseConfiguration(IDocument document, EditorConfiguration config, int lineNumber) {
+		System.out.println("Parsing configuration from line " + lineNumber);
 		int lines = document.getNumberOfLines();
 		String line;
 		while (++lineNumber < lines) {
@@ -174,17 +182,6 @@ public class ConfigurationParser {
 				config.componentNames = false;
 			} else if (line.startsWith("%component-names")) {
 				config.componentNames = true;
-			} else if (line.startsWith("%error-marking")) {
-				ErrorMarkingInstruction ei = ErrorMarkingInstruction.parseFromLine(line);
-				if (ei != null) {
-					config.addErrorInstruction(ei);
-				}
-			} else if (line.startsWith("%error-if-delay")) {
-				config.setErrorIfDelay(parseProblemIfDelay(line));
-			} else if (line.startsWith("%warning-if-delay")) {
-				config.setWarningIfDelay(parseProblemIfDelay(line));
-			} else if (line.startsWith("%info-if-delay")) {
-				config.setInfoIfDelay(parseProblemIfDelay(line));
 			} else if (line.startsWith("%outline startup")) {
 				config.addOutlineInstruction(GenericNodeDefinition.parseFromLineAsStartupDefinition(config, line));
 			} else if (line.startsWith("%outline test")) {
@@ -205,10 +202,37 @@ public class ConfigurationParser {
 				config.addOutlineInstruction(ExecutionNodeDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%outline custom")) {
 				config.addOutlineInstruction(GenericNodeDefinition.parseFromLine(config, line));
+			} else if (line.startsWith("%oid") || line.startsWith("%thread")) {
+				//nothing here
+			} else if (line.startsWith("%")) {
+				Instruction i = parseLine(line);
+				if (i == null) {
+					System.err.println("Unparseable config line: " + line);
+				} else {
+					config.addInstruction(i);
+				}
 			}
 		}
 		config.sortOutlineLevelDefinitions();
 		return lineNumber;
+	}
+
+	private static final List<Class<? extends Instruction>> INSTRUCTION_DEFINITIONS = Arrays.asList(MarkDelayInstruction.class, MarkProblemInstruction.class);
+	
+	private static Instruction parseLine(String line) {
+		for (Class<? extends Instruction> definition : INSTRUCTION_DEFINITIONS) {
+			try {
+				Method parseMethod = definition.getMethod("parseFromLine", String.class);
+				Instruction i = (Instruction) parseMethod.invoke(null, line);
+				if (i != null) {
+					return i;
+				}
+			} catch (NoSuchMethodException|SecurityException|IllegalAccessException|IllegalArgumentException|InvocationTargetException e) {
+				System.err.println("Couldn't invoke parseFromLine on " + definition);
+				e.printStackTrace();
+			}
+		}
+		return null;
 	}
 
 	private static Integer parseProblemIfDelay(String line) {
@@ -219,6 +243,23 @@ public class ConfigurationParser {
 		}
 		
 		return Integer.valueOf(line.substring(space1+1));
+	}
+
+	// 'xxx'->xxx, etc
+	public static String unwrapText(String text) {
+		if (text == null || text.isEmpty()) {
+			return null;
+		} else if (text.length() == 1) {
+			System.err.println("Improperly wrapped text: " + text);
+			return text;
+		}
+		char start = text.charAt(0);
+		char end = text.charAt(text.length()-1);
+		if (start != end) {
+			System.err.println("Improperly wrapped text: " + text);
+			return text;
+		}
+		return text.substring(1, text.length()-1);
 	}
 
 }

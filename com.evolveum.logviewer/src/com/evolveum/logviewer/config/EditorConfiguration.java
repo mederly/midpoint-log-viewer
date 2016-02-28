@@ -17,19 +17,20 @@ public class EditorConfiguration {
 	private Integer warningIfDelay;
 	private Integer infoIfDelay;
 	
-	private final List<ErrorMarkingInstruction> errorInstructions = new ArrayList<>();
+	private final List<Instruction> instructions = new ArrayList<>();
+	
 	private final List<OutlineNodeDefinition<? extends OutlineNodeContent>> outlineNodeDefinitions = new ArrayList<>();
 	private final List<OutlineNodeDefinition<? extends OutlineNodeContent>> outlineLevelDefinitionsSorted = new ArrayList<>();
 	private int numberOfLevels;
 
-	public List<ErrorMarkingInstruction> getErrorInstructions() {
-		return errorInstructions;
+	public List<Instruction> getInstructions() {
+		return instructions;
 	}
 	
-	public void addErrorInstruction(ErrorMarkingInstruction errorInstruction) {
-		errorInstructions.add(errorInstruction);
+	public void addInstruction(Instruction instruction) {
+		instructions.add(instruction);
 	}
-	
+
 	public void addOutlineInstruction(OutlineNodeDefinition<? extends OutlineNodeContent> outlineInstruction) {
 		if (outlineInstruction != null) {
 			outlineNodeDefinitions.add(outlineInstruction);
@@ -115,7 +116,7 @@ public class EditorConfiguration {
 	}
 
 	public String getSummary() {
-		return errorInstructions.size() + " error instruction(s)";
+		return instructions.size() + " instruction(s)";
 	}
 
 	public List<OutlineNodeDefinition<? extends OutlineNodeContent>> getOutlineLevelDefinitions(int level) {
@@ -147,6 +148,16 @@ public class EditorConfiguration {
 
 	public int getNumberOfLevels() {
 		return numberOfLevels;
+	}
+
+	public <T extends Instruction> List<T> getInstructions(Class<T> clazz) {
+		List<T> rv = new ArrayList<>();
+		for (Instruction instruction : instructions) {
+			if (clazz.isAssignableFrom(instruction.getClass())) {
+				rv.add((T) instruction);
+			}
+		}
+		return rv;
 	}
 
 }

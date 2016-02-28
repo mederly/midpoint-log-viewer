@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,14 +23,14 @@ import org.eclipse.jface.text.Position;
 import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.config.ConfigurationTemplateHelp;
 import com.evolveum.logviewer.config.EditorConfiguration;
-import com.evolveum.logviewer.config.ErrorMarkingInstruction;
+import com.evolveum.logviewer.config.MarkProblemInstruction;
 import com.evolveum.logviewer.config.OidInfo;
 import com.evolveum.logviewer.config.ThreadInfo;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.outline.TreeNode;
-import com.evolveum.logviewer.tree.OutlineNodeDefinition;
 import com.evolveum.logviewer.tree.OutlineNode;
 import com.evolveum.logviewer.tree.OutlineNodeContent;
+import com.evolveum.logviewer.tree.OutlineNodeDefinition;
 
 public class Parser {
 
@@ -55,7 +54,6 @@ public class Parser {
 	
 	Boolean componentNames;				// whether expect component names (e.g. [PROVISIONING]) in log lines
 	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public Parser(IDocument document, IResource resource) {
 		this.document = document;
 		this.resource = resource;
@@ -86,6 +84,7 @@ public class Parser {
 			for (OutlineNodeDefinition<?> nodeDefinition : nodeDefinitions) {
 				OutlineNodeContent content = nodeDefinition.recognize(lineNumber, line, region, document);
 				if (content != null) {
+					@SuppressWarnings({ "unchecked", "rawtypes" })
 					OutlineNode<?> node = new OutlineNode(nodeDefinition, content, region, lineNumber, line, document);
 					outlineNodesMap.put(lineNumber, node);
 				}
@@ -114,8 +113,8 @@ public class Parser {
 	private void sortOutlineNodes() {
 		for (int level = 1; level <= configuration.getNumberOfLevels(); level++) {
 			sortOutlineNodes(outlineNodesMap, level);
-			System.out.println("--- Outline nodes map after sorting at level " + level + " ---");
-			dumpOutlineNodesMap();
+//			System.out.println("--- Outline nodes map after sorting at level " + level + " ---");
+//			dumpOutlineNodesMap();
 		}
 		OutlineNode.createTreePositions(null, outlineNodesMap);
 	}
@@ -154,10 +153,6 @@ public class Parser {
 	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
 		if (!configuration.skipThreadProcessing) {
 			registerThread(line);
-		}
-		
-		if (line.contains("] ERROR (")) {
-			onErrorLine(lineNumber, line, region);
 		}
 		
 		Date date = ParsingUtils.parseDate(line);
@@ -219,6 +214,7 @@ public class Parser {
 	public void onAnyLine(int lineNumber, String line, IRegion region) throws BadLocationException {
 		extractOidInfo(lineNumber, line);
 		processFolding(lineNumber, line);
+		markLineIfNeeded(lineNumber, line, region);
 	}
 
 	// various possibilities, e.g.
@@ -451,19 +447,19 @@ public class Parser {
 		}
 	}
 
-	private void onErrorLine(int lineNumber, String line, IRegion region) {
+	private void markLineIfNeeded(int lineNumber, String line, IRegion region) {
 		if (resource == null) {
 			return;		// no resource, no markers
 		}
-		boolean enabled = true;
-		for (ErrorMarkingInstruction errorInstruction : configuration.getErrorInstructions()) {
-			if (errorInstruction.matches(line)) {
-				enabled = errorInstruction.isEnable();
+		int severity = -1;
+		for (MarkProblemInstruction markInstruction : configuration.getInstructions(MarkProblemInstruction.class)) {
+			if (markInstruction.matches(line)) {
+				severity = markInstruction.getSeverity();
 				break;
 			}
 		}
-		if (enabled) {
-			addMarker(lineNumber, line, IMarker.SEVERITY_ERROR);
+		if (severity >= 0) {
+			addMarker(lineNumber, line, severity);
 		}
 	}
 
@@ -503,8 +499,8 @@ public class Parser {
 		
 		TreeNode.removeEmptyRoots(treeNodes, null);
 		
-		System.out.println("Tree nodes:");
-		dumpTreeNodes(treeNodes, 0);
+		//System.out.println("Tree nodes:");
+		//dumpTreeNodes(treeNodes, 0);
 
 		return treeNodes.toArray(new TreeNode[0]);
 	}
@@ -524,38 +520,3 @@ public class Parser {
 	}
 	
 }
-
-/*
-public boolean parseLine(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
-
-for (OutlineLevelDefinition<? extends OutlineNodeContent> currentLevelDefinition : editorConfiguration.getOutlineLevelDefinitions(level)) {
-	MatchResult<C> result;
-	try {
-		result = (MatchResult<C>) currentLevelDefinition.matches((OutlineNode) this, lineNumber, line, region, document);
-	} catch (RuntimeException e) {
-		e.printStackTrace();
-		continue;
-	}
-	if (result != null) {
-		result.addNodesIntoChain(this);
-		return true;
-	}			
-}
-
-OutlineNode<?> lastChild;
-if (firstChild == null) {
-	Integer nextLevel = editorConfiguration.getNextOutlineLevel(level);
-	if (nextLevel == null) {
-		return false;
-	}
-	firstChild = new OutlineNode(editorConfiguration, nextLevel);
-	firstChild.setCoordinates(region, lineNumber, line, document);
-	firstChild.parent = this;
-	lastChild = firstChild;
-} else {
-	lastChild = getLastChild();
-}
-lastChild.parseLine(lineNumber, line, region, document);
-return false;
-}
-*/
