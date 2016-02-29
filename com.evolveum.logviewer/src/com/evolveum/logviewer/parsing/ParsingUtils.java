@@ -9,6 +9,7 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
 import com.evolveum.logviewer.editor.DocumentUtils;
+import com.evolveum.logviewer.outline.MyContentOutlinePage;
 
 public class ParsingUtils {
 
@@ -83,14 +84,53 @@ public class ParsingUtils {
 
 	public static Integer findNextLogLine(IDocument document, int lineNumber) {
 		int total = document.getNumberOfLines();
-		while (lineNumber < total) {
+		for (;;) {
+			if (lineNumber >= total) {
+				return null;
+			}
 			String line = DocumentUtils.getLine(document, lineNumber);
-			if (isLogEntryStart(line)) {
+			if (line.equals(MyContentOutlinePage.CONFIG_MARKER)) {
+				return null;
+			} else if (isLogEntryStart(line)) {
 				return lineNumber;
 			}
 			lineNumber++;
 		}
-		return null;
+	}
+	
+	public static int findLastLogEntryLine(IDocument document, int lineNumber) {
+		int total = document.getNumberOfLines();
+		for (;;) {
+			lineNumber++;
+			if (lineNumber >= total) {
+				return lineNumber-1;
+			}
+			String line = DocumentUtils.getLine(document, lineNumber);
+			if (line.equals(MyContentOutlinePage.CONFIG_MARKER)) {
+				return lineNumber-1;
+			} else if (isLogEntryStart(line)) {
+				return lineNumber-1;
+			}
+		}
+	}
+	
+	public static String getLogEntry(IDocument document, int lineNumber) {
+		StringBuilder sb = new StringBuilder();
+		int total = document.getNumberOfLines();
+		for (;;) {
+			if (lineNumber >= total) {
+				break;
+			}
+			String line = DocumentUtils.getLine(document, lineNumber);
+			if (line.equals(MyContentOutlinePage.CONFIG_MARKER)) {
+				break;
+			} else if (isLogEntryStart(line)) {
+				break;
+			}
+			sb.append(line).append("\n");
+			lineNumber++;
+		}
+		return sb.toString();
 	}
 
 }

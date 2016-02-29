@@ -13,7 +13,7 @@ public class MappingNodeDefinition extends OutlineNodeDefinition<MappingNodeCont
 	}
 
 	@Override
-	public MappingNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public MappingNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 		if (!line.startsWith("---[ MAPPING")) {
 			return null;
 		}

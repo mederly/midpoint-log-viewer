@@ -7,7 +7,7 @@ import org.eclipse.core.resources.IMarker;
 
 public class MarkDelayInstruction implements Instruction {
 	
-	private static final Pattern PATTERN = Pattern.compile("\\%mark\\-delay\\s+(\\d+)\\s+(\\w+)");
+	private static final Pattern PATTERN = Pattern.compile("\\%mark\\-delay\\s+(\\d+)\\s+(error|warn|info)");
 	
 	private final int milliseconds;
 	private final int severity;
@@ -25,7 +25,7 @@ public class MarkDelayInstruction implements Instruction {
 		return severity;
 	}
 
-	public static MarkDelayInstruction parseFromLine(String line) {
+	public static MarkDelayInstruction parseFromLine(EditorConfiguration config, String line) {
 		Matcher matcher = PATTERN.matcher(line);
 		if (!matcher.matches()) {
 			return null;
@@ -35,7 +35,7 @@ public class MarkDelayInstruction implements Instruction {
 		final int severity;
 		if ("error".equalsIgnoreCase(severityString)) {
 			severity = IMarker.SEVERITY_ERROR;
-		} else if ("warning".equalsIgnoreCase(severityString)) {
+		} else if ("warn".equalsIgnoreCase(severityString)) {
 			severity = IMarker.SEVERITY_WARNING;
 		} else if ("info".equalsIgnoreCase(severityString)) {
 			severity = IMarker.SEVERITY_INFO;

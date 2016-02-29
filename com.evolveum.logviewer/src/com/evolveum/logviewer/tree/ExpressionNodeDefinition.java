@@ -13,7 +13,7 @@ public class ExpressionNodeDefinition extends OutlineNodeDefinition<ExpressionNo
 	}
 
 	@Override
-	public ExpressionNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public ExpressionNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 		if (!line.startsWith("---[ EXPRESSION")) {
 			return null;
 		}

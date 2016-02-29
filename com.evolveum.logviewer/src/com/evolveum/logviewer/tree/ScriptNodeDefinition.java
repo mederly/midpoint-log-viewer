@@ -13,7 +13,7 @@ public class ScriptNodeDefinition extends OutlineNodeDefinition<ScriptNodeConten
 	}
 
 	@Override
-	public ScriptNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public ScriptNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 		if (!line.startsWith("---[ SCRIPT")) {
 			return null;
 		}

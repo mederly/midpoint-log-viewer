@@ -1,65 +1,67 @@
 package com.evolveum.logviewer.config;
 
-public class FoldingInstruction {
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+public class FoldingInstruction implements Instruction {
+
+	// like %collapse-entry containing "(com.evolveum.midpoint.provisioning.impl.ResourceManager)"
+
+	private static final Pattern PATTERN = Pattern.compile("\\%(?<type>collapse|expand)\\-(?<kind>line|entry)\\s+" + "(?<condition>" + Condition.REGEXP_COMPLETE + ")" + "\\s*(#.*)?");
+	
 	public enum Type { COLLAPSE, EXPAND };
-	public enum When { CONTAINING, NOT_CONTAINING };
+	public enum Kind { LINE, ENTRY };
+
+	private final Type type;
+	private final Kind kind;
+	private final Condition condition;
 	
-	public Type type;
-	public When when;
-	public String string;
+	public FoldingInstruction(Type type, Kind kind, Condition condition) {
+		this.type = type;
+		this.kind = kind;
+		this.condition = condition;
+	}
 	
-	// like %collapse containing "(com.evolveum.midpoint.provisioning.impl.ResourceManager)"
-	
-	public static FoldingInstruction parseFromLine(String line) {
-		line = line.trim();
-		
-		int space1 = line.indexOf(' ');
-		if (space1 < 0) {
-			System.out.println("Couldn't parse folding instruction: " + line);
+	public Type getType() {
+		return type;
+	}
+
+	public Kind getKind() {
+		return kind;
+	}
+
+	public Condition getCondition() {
+		return condition;
+	}
+
+	public static FoldingInstruction parseFromLine(EditorConfiguration editorConfiguration, String line) {
+		Matcher matcher = PATTERN.matcher(line);
+		if (!matcher.matches()) {
 			return null;
 		}
-		int space2 = line.indexOf(' ', space1+1);
-		if (space2 < 0) {
-			System.out.println("Couldn't parse folding instruction: " + line);
-			return null;
-		}
-		int separator = line.charAt(space2+1);
-		int nextSeparator = line.indexOf(separator, space2+2);
-		if (nextSeparator < 0) {
-			System.out.println("Couldn't parse folding instruction: " + line);
-			return null;			
-		}
 		
-		FoldingInstruction rv = new FoldingInstruction();
-		
-		String typeStr = line.substring(0, space1);
-		if (typeStr.equals("%collapse")) {
-			rv.type = Type.COLLAPSE;
-		} else if (typeStr.equals("%expand")) {
-			rv.type = Type.EXPAND;
+		final String typeString = matcher.group("type");
+		final Type type;
+		if ("collapse".equalsIgnoreCase(typeString)) {
+			type = Type.COLLAPSE;
+		} else if ("expand".equalsIgnoreCase(typeString)) {
+			type = Type.EXPAND;
 		} else {
-			System.err.println("Unknown folding instr type: " + line);
-			return null;
+			throw new IllegalStateException("Unknown type: " + typeString);
 		}
-		
-		String whenStr = line.substring(space1+1, space2);
-		if (whenStr.equals("containing")) {
-			rv.when = When.CONTAINING;
-		} else if (whenStr.equals("not-containing")) {
-			rv.when = When.NOT_CONTAINING;
+
+		final String kindString = matcher.group("kind");
+		final Kind kind;
+		if ("line".equalsIgnoreCase(kindString)) {
+			kind = Kind.LINE;
+		} else if ("entry".equalsIgnoreCase(kindString)) {
+			kind = Kind.ENTRY;
 		} else {
-			System.err.println("Unknown folding instr when clause: " + line);
-			return null;
+			throw new IllegalStateException("Unknown kind: " + kindString);
 		}
 		
-		rv.string = line.substring(space2+2, nextSeparator);
-		if (rv.string.isEmpty()) {
-			System.err.println("Empty string to match in folding instr: " + line);
-			return null;			
-		}
-		
-		return rv;		
+		final Condition condition = Condition.parse(matcher.group("condition"));
+		return new FoldingInstruction(type, kind, condition);
 	}
 	
 	

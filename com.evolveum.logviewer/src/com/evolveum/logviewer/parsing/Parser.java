@@ -25,6 +25,8 @@ import com.evolveum.logviewer.config.ConfigurationTemplateHelp;
 import com.evolveum.logviewer.config.EditorConfiguration;
 import com.evolveum.logviewer.config.MarkProblemInstruction;
 import com.evolveum.logviewer.config.OidInfo;
+import com.evolveum.logviewer.config.Scope;
+import com.evolveum.logviewer.config.ShowInOutlineInstruction;
 import com.evolveum.logviewer.config.ThreadInfo;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
 import com.evolveum.logviewer.outline.TreeNode;
@@ -65,6 +67,9 @@ public class Parser {
 	public void parse() throws BadLocationException {
 		
 		final List<OutlineNodeDefinition<?>> nodeDefinitions = configuration.getAllOutlineLevelDefinitions();
+		final List<ShowInOutlineInstruction> showInOutlineInstructions = configuration.getInstructions(ShowInOutlineInstruction.class);
+		
+		String entry = null, header = null; 
 		
 		for (int lineNumber = 0; lineNumber < numberOfLines; lineNumber++) {
 			
@@ -75,24 +80,41 @@ public class Parser {
 				onConfigLine(lineNumber, line, region);
 				continue;
 			}
-
-			onAnyLine(lineNumber, line, region);
+			
 			if (ParsingUtils.isLogEntryStart(line)) {
-				onLogEntryLine(lineNumber, line, region);
+				header = line;
+				entry = ParsingUtils.getLogEntry(document, lineNumber);
 			}
 
-			for (OutlineNodeDefinition<?> nodeDefinition : nodeDefinitions) {
-				OutlineNodeContent content = nodeDefinition.recognize(lineNumber, line, region, document);
-				if (content != null) {
-					@SuppressWarnings({ "unchecked", "rawtypes" })
-					OutlineNode<?> node = new OutlineNode(nodeDefinition, content, region, lineNumber, line, document);
-					outlineNodesMap.put(lineNumber, node);
-				}
+			onAnyLine(lineNumber, line, entry, header, region);
+			if (ParsingUtils.isLogEntryStart(line)) {
+				onLogEntryLine(lineNumber, line, entry, region);
+			}
+			
+			if (showInOutline(showInOutlineInstructions, line, entry, header)) {
+				for (OutlineNodeDefinition<?> nodeDefinition : nodeDefinitions) {
+					OutlineNodeContent content = nodeDefinition.recognize(lineNumber, line, entry, header, region, document);
+					if (content != null) {
+						@SuppressWarnings({ "unchecked", "rawtypes" })
+						OutlineNode<?> node = new OutlineNode(nodeDefinition, content, region, lineNumber, line, document);
+						outlineNodesMap.put(lineNumber, node);
+					}
+				}	
 			}
 		}
 
 		sortOutlineNodes();
 		dumpInfoToConfigSection();
+	}
+
+	private boolean showInOutline(List<ShowInOutlineInstruction> showInOutlineInstructions, String line, String entry,
+			String header) {
+		for (ShowInOutlineInstruction instruction : showInOutlineInstructions) {
+			if (instruction.getCondition().matches(line, entry, header, Scope.LINE)) {
+				return instruction.isOn();
+			}
+		}
+		return true;
 	}
 
 	private void dumpOutlineNodesMap() {
@@ -150,7 +172,7 @@ public class Parser {
 
 	private Long lastTimestamp = null;
 	
-	public void onLogEntryLine(int lineNumber, String line, IRegion region) {
+	public void onLogEntryLine(int lineNumber, String line, String entry, IRegion region) {
 		if (!configuration.skipThreadProcessing) {
 			registerThread(line);
 		}
@@ -211,10 +233,10 @@ public class Parser {
 //	}
 //	
 
-	public void onAnyLine(int lineNumber, String line, IRegion region) throws BadLocationException {
+	public void onAnyLine(int lineNumber, String line, String entry, String header, IRegion region) throws BadLocationException {
 		extractOidInfo(lineNumber, line);
 		processFolding(lineNumber, line);
-		markLineIfNeeded(lineNumber, line, region);
+		markLineIfNeeded(lineNumber, line, entry, header, region);
 	}
 
 	// various possibilities, e.g.
@@ -447,13 +469,13 @@ public class Parser {
 		}
 	}
 
-	private void markLineIfNeeded(int lineNumber, String line, IRegion region) {
+	private void markLineIfNeeded(int lineNumber, String line, String entry, String header, IRegion region) {
 		if (resource == null) {
 			return;		// no resource, no markers
 		}
 		int severity = -1;
 		for (MarkProblemInstruction markInstruction : configuration.getInstructions(MarkProblemInstruction.class)) {
-			if (markInstruction.matches(line)) {
+			if (markInstruction.matches(line, entry, header)) {
 				severity = markInstruction.getSeverity();
 				break;
 			}

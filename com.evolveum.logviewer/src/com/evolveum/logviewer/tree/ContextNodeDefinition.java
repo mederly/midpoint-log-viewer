@@ -64,7 +64,7 @@ public class ContextNodeDefinition extends OutlineNodeDefinition<ContextNodeCont
 	}
 
 	@Override
-	public ContextNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public ContextNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 
 		String lineContent = recognizeLine(line);
 		if (lineContent == null) {

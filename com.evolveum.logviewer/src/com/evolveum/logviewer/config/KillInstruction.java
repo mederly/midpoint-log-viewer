@@ -1,75 +1,69 @@
 package com.evolveum.logviewer.config;
 
-public class KillInstruction {
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-	public enum When { CONTAINING, NOT_CONTAINING, LOG_LINE_CONTAINING, LOG_LINE_NOT_CONTAINING };
-	
-	When when;
-	String string;
-	
+import org.eclipse.core.resources.IMarker;
+
+import com.evolveum.logviewer.config.MarkProblemInstruction.Kind;
+import com.evolveum.logviewer.parsing.ParsingUtils;
+
+public class KillInstruction implements Instruction {
+
 	// like %kill containing "(com.evolveum.midpoint.provisioning.impl.ResourceManager)"
+
+	private static final Pattern PATTERN = Pattern.compile("\\%kill\\-(?<kind>line|entry)\\s+" + "(?<condition>" + Condition.REGEXP_COMPLETE + ")" + "\\s*(#.*)?");
 	
-	public static KillInstruction parseFromLine(String line) {
-		line = line.trim();
-		
-		int space1 = line.indexOf(' ');
-		if (space1 < 0) {
-			System.out.println("Couldn't parse kill instruction: " + line);
-			return null;
-		}
-		int space2 = line.indexOf(' ', space1+1);
-		if (space2 < 0) {
-			System.out.println("Couldn't parse kill instruction: " + line);
-			return null;
-		}
-		int separator = line.charAt(space2+1);
-		int nextSeparator = line.indexOf(separator, space2+2);
-		if (nextSeparator < 0) {
-			System.out.println("Couldn't parse kill instruction: " + line);
-			return null;			
-		}
-		
-		KillInstruction rv = new KillInstruction();
-		
-		String typeStr = line.substring(0, space1);
-		if (!typeStr.equals("%kill")) {
-			System.err.println("Unknown kill instr type: " + line);
-			return null;
-		}
-		
-		String whenStr = line.substring(space1+1, space2);
-		if (whenStr.equals("containing")) {
-			rv.when = When.CONTAINING;
-		} else if (whenStr.equals("not-containing")) {
-			rv.when = When.NOT_CONTAINING;
-		} else if (whenStr.equals("log-line-containing")) {
-			rv.when = When.LOG_LINE_CONTAINING;
-		} else if (whenStr.equals("log-line-not-containing")) {
-			rv.when = When.LOG_LINE_NOT_CONTAINING;
-		} else {
-			System.err.println("Unknown kill instr when clause: " + line);
-			return null;
-		}
-		
-		rv.string = line.substring(space2+2, nextSeparator);
-		if (rv.string.isEmpty()) {
-			System.err.println("Empty string to match in kill instr: " + line);
-			return null;			
-		}
-		
-		return rv;		
+	public static enum Kind { LINE, ENTRY };
+	
+	private final Kind kind;
+	private final Condition condition;
+
+	public KillInstruction(Kind kind, Condition condition) {
+		super();
+		this.kind = kind;
+		this.condition = condition;
 	}
 
-	public boolean appliesTo(String logLine, String wholeEntry) {
-		switch (when) {
-			case CONTAINING: return wholeEntry.contains(string);
-			case NOT_CONTAINING: return !wholeEntry.contains(string);
-			case LOG_LINE_CONTAINING: return logLine.contains(string);
-			case LOG_LINE_NOT_CONTAINING: return !logLine.contains(string);
-			default:
-				System.err.println("Unknown when: " + when);
-				return false;
+	public Kind getKind() {
+		return kind;
+	}
+
+	public Condition getCondition() {
+		return condition;
+	}
+	
+	public static KillInstruction parseFromLine(EditorConfiguration editorConfiguration, String line) {
+		Matcher matcher = PATTERN.matcher(line);
+		if (!matcher.matches()) {
+			return null;
 		}
+		
+		final String kindString = matcher.group("kind");
+		final Kind kind;
+		if ("line".equalsIgnoreCase(kindString)) {
+			kind = Kind.LINE;
+		} else if ("entry".equalsIgnoreCase(kindString)) {
+			kind = Kind.ENTRY;
+		} else {
+			throw new IllegalStateException("Unknown kind: " + kindString);
+		}
+		
+		final Condition condition = Condition.parse(matcher.group("condition"));
+		return new KillInstruction(kind, condition);
+	}
+
+
+	public boolean matches(String line, String entry, String header) {
+		if (kind == Kind.LINE) {
+			return condition.matches(line, entry, header, Scope.LINE);			
+		} else {
+			if (!ParsingUtils.isLogEntryStart(line)) {
+				return false;
+			}
+			return condition.matches(line, entry, header, Scope.ENTRY);
+		}
+		
 	}	
 	
 }

@@ -18,7 +18,7 @@ public class SummaryNodeDefinition extends OutlineNodeDefinition<SummaryNodeCont
 	}
 	
 	@Override
-	public SummaryNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public SummaryNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 		if (line.startsWith("###[ CLOCKWORK SUMMARY")) {
 			SummaryNodeContent summaryNodeContent = new SummaryNodeContent();
 			summaryNodeContent.setDefaultLabel("### Execution summary ###");

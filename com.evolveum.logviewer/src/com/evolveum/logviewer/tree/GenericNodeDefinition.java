@@ -6,93 +6,41 @@ import java.util.regex.Pattern;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 
+import com.evolveum.logviewer.config.AtomicCondition;
+import com.evolveum.logviewer.config.Condition;
+import com.evolveum.logviewer.config.ConfigurationParser;
 import com.evolveum.logviewer.config.EditorConfiguration;
+import com.evolveum.logviewer.config.Scope;
 import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class GenericNodeDefinition extends OutlineNodeDefinition<GenericNodeContent> {
 
-	public GenericNodeDefinition(EditorConfiguration editorConfiguration) {
+	private final Condition condition;
+	private final String label;
+	
+	private static final Pattern PATTERN = Pattern.compile("\\%outline\\s+custom\\s+" + "(?<condition>" + Condition.REGEXP_COMPLETE + ")" + "(?<level>\\d+)\\s+(?<title>" + AtomicCondition.REGEXP_TEXT + ")\\s*(#.*)?");
+	
+	public GenericNodeDefinition(EditorConfiguration editorConfiguration, Condition condition, int level, String label) {
 		super(editorConfiguration);
+		this.physicalLevel = level;
+		this.condition = condition;
+		this.label = label;
 	}
 
-	private String text;
-	private String regexp;
-	private Pattern pattern;
-	private String label;
-	
+	public Condition getCondition() {
+		return condition;
+	}
+
 	public static GenericNodeDefinition parseFromLine(EditorConfiguration editorConfiguration, String line) {
-		line = line.trim();
-		
-		int space0 = line.indexOf(' ');
-		if (space0 < 0) {
-			System.out.println("Couldn't parse outline instruction: " + line);
+		Matcher matcher = PATTERN.matcher(line);
+		if (!matcher.matches()) {
 			return null;
 		}
 		
-		int space1 = line.indexOf(' ', space0+1);
-		if (space1 < 0) {
-			System.out.println("Couldn't parse outline instruction: " + line);
-			return null;
-		}
-		int space2 = line.indexOf(' ', space1+1);
-		if (space2 < 0) {
-			System.out.println("Couldn't parse outline instruction: " + line);
-			return null;
-		}
-		int separator = line.charAt(space2+1);
-		int nextSeparator = line.indexOf(separator, space2+2);
-		if (nextSeparator < 0) {
-			System.out.println("Couldn't parse outline instruction: " + line);
-			return null;			
-		}
-		
-		GenericNodeDefinition rv = new GenericNodeDefinition(editorConfiguration);
-		
-		try {
-			rv.physicalLevel = Integer.parseInt(line.substring(space1+1, space2));
-		} catch (NumberFormatException e) {
-			System.out.println("Couldn't parse outline instruction: " + line + ": " + e);
-			return null;
-		}
-
-		String string1 = line.substring(space2+2, nextSeparator);
-		if (separator == '/') {
-			rv.regexp = string1;
-			rv.compileRegexp();
-		} else {
-			rv.text = string1;
-		}
-		
-		int separator2 = line.charAt(nextSeparator+2);
-		int nextSeparator2 = line.indexOf(separator2, nextSeparator+3);
-		if (nextSeparator2 < 0) {
-			System.out.println("Couldn't parse outline instruction: " + line);
-			return null;			
-		}
-		rv.label = line.substring(nextSeparator+3, nextSeparator2);
-				
-		return rv;		
-	}
-
-	private void compileRegexp() {
-		try {
-			pattern = Pattern.compile(regexp);
-		} catch (RuntimeException e) {
-			System.err.println("Couldn't compile regexp '" + regexp + "': " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-
-	public String getText() {
-		return text;
-	}
-
-	public String getRegexp() {
-		return regexp;
-	}
-	
-	public Pattern getPattern() {
-		return pattern;
+		final Condition condition = Condition.parse(matcher.group("condition"));
+		final int level = Integer.parseInt(matcher.group("level"));
+		final String label = ConfigurationParser.unwrapText(matcher.group("label"));
+		return new GenericNodeDefinition(editorConfiguration, condition, level, label);
 	}
 
 	public String getLabel() {
@@ -100,56 +48,49 @@ public class GenericNodeDefinition extends OutlineNodeDefinition<GenericNodeCont
 	}
 
 	@Override
-	public GenericNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) {
-		if (text != null) {
-			if (line.contains(text)) {
-				return createResult(lineNumber, line, region, document, null);
-			}
-		} else if (pattern != null) {
-			Matcher matcher = pattern.matcher(line);
-			if (matcher.matches()) {
-				return createResult(lineNumber, line, region, document, matcher);
-			}
+	public GenericNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) {
+		final boolean matches;
+		final Matcher matcher;
+		if (!label.contains("${group")) {
+			matches = condition.matches(line, entry, header, Scope.LINE);
+			matcher = null;
+		} else {
+			matcher = condition.matchingMatcher(line, entry, header, Scope.LINE);
+			matches = matcher != null;
 		}
-		return null;
+		if (matches) {
+			return createResult(lineNumber, line, region, document, matcher);
+		} else {
+			return null;
+		}
 	}
-	
 
 	private GenericNodeContent createResult(int lineNumber, String line, IRegion region, IDocument document, Matcher matcher) {
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < label.length(); i++) {
-			if (label.charAt(i) != '%') {
+			if (label.charAt(i) != '$') {
 				sb.append(label.charAt(i));
+				continue;
+			} 
+			if (i == label.length() || label.charAt(i+1) != '{') {
+				sb.append('$');
+				continue;
+			}
+			int ending = label.indexOf('}', i);
+			if (ending < 0) {
+				sb.append('$');
+				continue;
+			}
+			
+			String expression = label.substring(i+2, ending);
+			if ("date".equals(expression)) {
+				sb.append(ParsingUtils.parseDate(line));
+				i = ending;
+			} else if (expression.startsWith("group:")) {
+				sb.append(matcher.group(Integer.parseInt(expression.substring(6))));
+				i = ending;
 			} else {
-				char next;
-				if (i == label.length()) {
-					next = '%';
-				} else {
-					next = label.charAt(++i);
-				}
-				if (next == 'd') {
-					sb.append(ParsingUtils.parseDate(line));
-				} else if (Character.isDigit(next)) {
-					StringBuilder sb1 = new StringBuilder();
-					do {
-						sb1.append(next);
-						if (i == label.length()) {
-							next = 0;
-							break;
-						}
-						next = label.charAt(++i); 
-					} while (Character.isDigit(next));
-					if (next == 'g' && matcher != null) {
-						sb.append(matcher.group(Integer.parseInt(sb1.toString())));
-					} else {
-						sb.append(sb1);
-						if (next != 0) {
-							sb.append(next);
-						}
-					}
-				} else {
-					sb.append(next);
-				}
+				sb.append('$');
 			}
 		}
 		
@@ -169,22 +110,20 @@ public class GenericNodeDefinition extends OutlineNodeDefinition<GenericNodeCont
 	public String toString() {
 		return super.toString() + "; label: " + label;
 	}
-	
+
+	// %outline startup <level>
 	public static OutlineNodeDefinition<?> parseFromLineAsStartupDefinition(EditorConfiguration editorConfiguration, String line) {
-		GenericNodeDefinition def = new GenericNodeDefinition(editorConfiguration);
-		def.parseFromLine(line);
-		def.text = "Product information : http://wiki.evolveum.com/display/midPoint";
-		def.label = "=========> System startup at %d <=========";
-		return def;
+		Condition condition = Condition.parse("line containing 'Product information : http://wiki.evolveum.com/display/midPoint'");
+		String label = "=========> System startup at ${date} <=========";
+		int level = OutlineNodeDefinition.getLevel(line);
+		return new GenericNodeDefinition(editorConfiguration, condition, level, label);
 	}
 
 	public static OutlineNodeDefinition<?> parseFromLineAsTestDefinition(EditorConfiguration editorConfiguration, String line) {
-		GenericNodeDefinition def = new GenericNodeDefinition(editorConfiguration);
-		def.parseFromLine(line);
-		def.regexp = ".*=====\\[\\ (\\w+\\.\\w+)\\ \\]======================================.*";
-		def.compileRegexp();
-		def.label = "TEST: %1g";
-		return def;
+		Condition condition = Condition.parse("line matching '.*=====\\[\\ (\\w+\\.\\w+)\\ \\]======================================.*'");
+		String label = "TEST: ${group:1}";
+		int level = OutlineNodeDefinition.getLevel(line);
+		return new GenericNodeDefinition(editorConfiguration, condition, level, label);
 	}
 
 }

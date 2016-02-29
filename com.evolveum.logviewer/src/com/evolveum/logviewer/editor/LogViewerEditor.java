@@ -1,13 +1,9 @@
 package com.evolveum.logviewer.editor;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.ISourceViewer;
@@ -20,14 +16,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.editors.text.TextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 
-import com.evolveum.logviewer.config.FoldingInstruction;
-import com.evolveum.logviewer.config.KillInstruction;
 import com.evolveum.logviewer.actions.ActionExecutor;
-import com.evolveum.logviewer.config.ConfigurationParser;
-import com.evolveum.logviewer.config.FoldingInstruction.Type;
-import com.evolveum.logviewer.config.FoldingInstruction.When;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
-import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class LogViewerEditor extends TextEditor {
 

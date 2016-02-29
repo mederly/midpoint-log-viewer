@@ -15,7 +15,7 @@ public class ProjectionContextNodeDefinition extends OutlineNodeDefinition<Proje
 	}
 
 	@Override
-	public ProjectionContextNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public ProjectionContextNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 		if (!line.startsWith("    PROJECTION ShadowType Discr")) {
 			return null;
 		}

@@ -9,52 +9,39 @@ import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class MarkProblemInstruction implements Instruction {
 	
-	private static final Pattern PATTERN = Pattern.compile("\\%mark\\-(error|warn|info|line)\\s+((containing|not-containing|regexp)\\s+('.*'|\".*\"|\\*.*\\*)\\s+)?(error|warning|info|none)\\s*(#.*)?");
-	private static final int G_KIND = 1; // group 1 = error|warn|...
-										 // group 2 = aggregation
-	private static final int G_WHEN = 3; // group 3 = containing|not-containing|...
-	private static final int G_TEXT = 4; // group 4 = text
-	private static final int G_SEVERITY = 5; // group 5 = error|warning|...
+	private static final Pattern PATTERN = Pattern.compile("\\%mark\\-(?<kind>error|warn|info|line)\\s+" + "(?<condition>" + Condition.REGEXP_COMPLETE + ")" + "(?<severity>error|warn|info|none)\\s*(#.*)?");
 	
 	public static enum Kind { ERROR, WARN, INFO, LINE };
 	
 	private final Kind kind;
-	private final When when;
-	private final String text;
-	private final Pattern pattern;
+	private final Condition condition;
 	private final int severity;
 
-	public MarkProblemInstruction(Kind kind, When when, String text, Pattern pattern, int severity) {
+	public MarkProblemInstruction(Kind kind, Condition condition, int severity) {
 		this.kind = kind;
-		this.when = when;
-		this.text = text;
-		this.pattern = pattern;
+		this.condition = condition;
 		this.severity = severity;
 	}
 
 	public Kind getKind() {
 		return kind;
 	}
-
-	public When getWhen() {
-		return when;
-	}
-
-	public String getText() {
-		return text;
+	
+	public Condition getCondition() {
+		return condition;
 	}
 
 	public int getSeverity() {
 		return severity;
 	}
 
-	public static MarkProblemInstruction parseFromLine(String line) {
+	public static MarkProblemInstruction parseFromLine(EditorConfiguration editorConfiguration, String line) {
 		Matcher matcher = PATTERN.matcher(line);
 		if (!matcher.matches()) {
 			return null;
 		}
 		
-		final String kindString = matcher.group(G_KIND);
+		final String kindString = matcher.group("kind");
 		final Kind kind;
 		if ("error".equalsIgnoreCase(kindString)) {
 			kind = Kind.ERROR;
@@ -68,23 +55,11 @@ public class MarkProblemInstruction implements Instruction {
 			throw new IllegalStateException("Unknown kind: " + kindString);
 		}
 		
-		final When when = When.fromString(matcher.group(G_WHEN));
-		final String text = ConfigurationParser.unwrapText(matcher.group(G_TEXT));
-		Pattern pattern = null;
-		if (when == When.REGEXP) {
-			try {
-				pattern = Pattern.compile(text);
-			} catch (RuntimeException e) {
-				System.err.println("Couldn't compile regex: '"+text+"'");
-				e.printStackTrace();
-			}
-		}
-		
-		final String severityString = matcher.group(G_SEVERITY);
+		final String severityString = matcher.group("severity");
 		final int severity;
 		if ("error".equalsIgnoreCase(severityString)) {
 			severity = IMarker.SEVERITY_ERROR;
-		} else if ("warning".equalsIgnoreCase(severityString)) {
+		} else if ("warn".equalsIgnoreCase(severityString)) {
 			severity = IMarker.SEVERITY_WARNING;
 		} else if ("info".equalsIgnoreCase(severityString)) {
 			severity = IMarker.SEVERITY_INFO;
@@ -94,29 +69,25 @@ public class MarkProblemInstruction implements Instruction {
 			System.err.println("Unknown severity name: " + severityString);
 			severity = IMarker.SEVERITY_INFO;
 		}
-		return new MarkProblemInstruction(kind, when, text, pattern, severity);
+		
+		final Condition condition = Condition.parse(matcher.group("condition"));
+		return new MarkProblemInstruction(kind, condition, severity);
 	}
 
-	public boolean matches(String line) {
+	public boolean matches(String line, String entry, String header) {
 		if (kind != Kind.LINE) {
 			if (!ParsingUtils.isLogEntryStart(line)) {
 				return false;
 			}
+			// so header == line after this point
 			switch (kind) {
 			case ERROR: if (!(line.contains("] ERROR ("))) return false; break;
 			case WARN:  if (!(line.contains("] WARN  (")) && !(line.contains("] WARN ("))) return false; break;
 			case INFO:  if (!(line.contains("] INFO  (")) && !(line.contains("] INFO ("))) return false; break;
+			default: throw new IllegalStateException();
 			}
 		}
-		if (when == null) {
-			return true;
-		}
-		switch (when) {
-		case CONTAINING: return line.contains(text);
-		case NOT_CONTAINING: return !line.contains(text);
-		case REGEXP: return pattern.matcher(line).matches();
-		default: return false;	//not supported
-		}
+		return condition.matches(line, entry, header, Scope.LINE);
 	}
 
 }

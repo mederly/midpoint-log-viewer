@@ -3,6 +3,7 @@ package com.evolveum.logviewer.config;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.resources.IMarker;
 import org.eclipse.jface.text.IRegion;
 
 import com.evolveum.logviewer.tree.GenericNodeDefinition;
@@ -28,15 +29,23 @@ public class EditorConfiguration {
 	}
 	
 	public void addInstruction(Instruction instruction) {
+		if (instruction == null) {		// just to simplify parsing
+			return;
+			
+		}
 		instructions.add(instruction);
-	}
-
-	public void addOutlineInstruction(OutlineNodeDefinition<? extends OutlineNodeContent> outlineInstruction) {
-		if (outlineInstruction != null) {
-			outlineNodeDefinitions.add(outlineInstruction);
+		if (instruction instanceof MarkDelayInstruction) {
+			MarkDelayInstruction mdi = (MarkDelayInstruction) instruction;
+			switch (mdi.getSeverity()) {
+			case IMarker.SEVERITY_ERROR: errorIfDelay = mdi.getMilliseconds(); break;
+			case IMarker.SEVERITY_WARNING: warningIfDelay = mdi.getMilliseconds(); break;
+			case IMarker.SEVERITY_INFO: infoIfDelay = mdi.getMilliseconds(); break;			
+			}
+		} else if (instruction instanceof OutlineNodeDefinition<?>) {
+			outlineNodeDefinitions.add((OutlineNodeDefinition<?>) instruction);
 		}
 	}
-	
+
 	public void sortOutlineLevelDefinitions() {
 		
 		if (outlineNodeDefinitions.isEmpty()) {
@@ -95,24 +104,12 @@ public class EditorConfiguration {
 		return errorIfDelay;
 	}
 
-	public void setErrorIfDelay(Integer errorIfDelay) {
-		this.errorIfDelay = errorIfDelay;
-	}
-
 	public Integer getWarningIfDelay() {
 		return warningIfDelay;
 	}
 
-	public void setWarningIfDelay(Integer warningIfDelay) {
-		this.warningIfDelay = warningIfDelay;
-	}
-	
 	public Integer getInfoIfDelay() {
 		return infoIfDelay;
-	}
-
-	public void setInfoIfDelay(Integer infoIfDelay) {
-		this.infoIfDelay = infoIfDelay;
 	}
 
 	public String getSummary() {

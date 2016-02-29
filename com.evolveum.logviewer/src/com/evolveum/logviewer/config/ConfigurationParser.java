@@ -20,6 +20,7 @@ import com.evolveum.logviewer.tree.ExecutionNodeDefinition;
 import com.evolveum.logviewer.tree.ExpressionNodeDefinition;
 import com.evolveum.logviewer.tree.GenericNodeDefinition;
 import com.evolveum.logviewer.tree.MappingNodeDefinition;
+import com.evolveum.logviewer.tree.OutlineNodeDefinition;
 import com.evolveum.logviewer.tree.ProjectionContextNodeDefinition;
 import com.evolveum.logviewer.tree.ScriptNodeDefinition;
 import com.evolveum.logviewer.tree.SummaryNodeDefinition;
@@ -77,69 +78,6 @@ public class ConfigurationParser {
 
 	}
 
-	// TODO move
-	public static List<FoldingInstruction> getAllFoldingInstructions(IDocument document) {
-		List<FoldingInstruction> rv = new ArrayList<>();
-		if (document == null) {
-			return rv;
-		}
-		try {
-			int lineNumber = document.getNumberOfLines()-1;
-			while (lineNumber >= 0) {
-				IRegion lineReg = document.getLineInformation(lineNumber);
-				String line = document.get(lineReg.getOffset(), lineReg.getLength());
-				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
-					return rv;
-				}
-				if (line.startsWith("%collapse ") || line.startsWith("%expand ")) {
-					FoldingInstruction instr = FoldingInstruction.parseFromLine(line);
-					if (instr != null) {
-						rv.add(instr);
-					}
-				}
-				lineNumber--;
-			}
-			Collections.reverse(rv);
-			return rv;
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-			Collections.reverse(rv);
-			return rv;
-		}
-
-	}
-	
-	//TODO move
-	public static List<KillInstruction> getAllKillInstructions(IDocument document) {
-		List<KillInstruction> rv = new ArrayList<>();
-		if (document == null) {
-			return rv;
-		}
-		try {
-			int lineNumber = document.getNumberOfLines()-1;
-			while (lineNumber >= 0) {
-				IRegion lineReg = document.getLineInformation(lineNumber);
-				String line = document.get(lineReg.getOffset(), lineReg.getLength());
-				if (line.equals(MyContentOutlinePage.CONFIG_MARKER) || ParsingUtils.isLogEntryStart(line)) {
-					return rv;
-				}
-				if (line.startsWith("%kill ")) {
-					KillInstruction instr = KillInstruction.parseFromLine(line);
-					if (instr != null) {
-						rv.add(instr);
-					}
-				}
-				lineNumber--;
-			}
-			Collections.reverse(rv);
-			return rv;
-		} catch (BadLocationException e) {
-			e.printStackTrace();
-			Collections.reverse(rv);
-			return rv;
-		}
-	}
-	
 	public static EditorConfiguration getConfiguration(IDocument document) {
 		EditorConfiguration config = new EditorConfiguration(); 
 		if (document == null) {
@@ -182,30 +120,10 @@ public class ConfigurationParser {
 				config.componentNames = false;
 			} else if (line.startsWith("%component-names")) {
 				config.componentNames = true;
-			} else if (line.startsWith("%outline startup")) {
-				config.addOutlineInstruction(GenericNodeDefinition.parseFromLineAsStartupDefinition(config, line));
-			} else if (line.startsWith("%outline test")) {
-				config.addOutlineInstruction(GenericNodeDefinition.parseFromLineAsTestDefinition(config, line));
-			} else if (line.startsWith("%outline operation-summary")) {
-				config.addOutlineInstruction(SummaryNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline operation-context")) {
-				config.addOutlineInstruction(ContextNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline projection-context")) {
-				config.addOutlineInstruction(ProjectionContextNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline mapping")) {
-				config.addOutlineInstruction(MappingNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline expression")) {
-				config.addOutlineInstruction(ExpressionNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline script")) {
-				config.addOutlineInstruction(ScriptNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline execution")) {
-				config.addOutlineInstruction(ExecutionNodeDefinition.parseFromLine(config, line));
-			} else if (line.startsWith("%outline custom")) {
-				config.addOutlineInstruction(GenericNodeDefinition.parseFromLine(config, line));
 			} else if (line.startsWith("%oid") || line.startsWith("%thread")) {
 				//nothing here
 			} else if (line.startsWith("%")) {
-				Instruction i = parseLine(line);
+				Instruction i = parseLine(config, line);
 				if (i == null) {
 					System.err.println("Unparseable config line: " + line);
 				} else {
@@ -217,13 +135,21 @@ public class ConfigurationParser {
 		return lineNumber;
 	}
 
-	private static final List<Class<? extends Instruction>> INSTRUCTION_DEFINITIONS = Arrays.asList(MarkDelayInstruction.class, MarkProblemInstruction.class);
+	private static final List<Class<? extends Instruction>> INSTRUCTION_DEFINITIONS = 
+			Arrays.asList(
+					MarkDelayInstruction.class, 
+					MarkProblemInstruction.class,
+					ShowInOutlineInstruction.class,
+					GenericNodeDefinition.class,
+					OutlineNodeDefinition.class,
+					KillInstruction.class,
+					FoldingInstruction.class);
 	
-	private static Instruction parseLine(String line) {
+	private static Instruction parseLine(EditorConfiguration config, String line) {
 		for (Class<? extends Instruction> definition : INSTRUCTION_DEFINITIONS) {
 			try {
-				Method parseMethod = definition.getMethod("parseFromLine", String.class);
-				Instruction i = (Instruction) parseMethod.invoke(null, line);
+				Method parseMethod = definition.getMethod("parseFromLine", EditorConfiguration.class, String.class);
+				Instruction i = (Instruction) parseMethod.invoke(null, config, line);
 				if (i != null) {
 					return i;
 				}
@@ -233,16 +159,6 @@ public class ConfigurationParser {
 			}
 		}
 		return null;
-	}
-
-	private static Integer parseProblemIfDelay(String line) {
-		int space1 = line.indexOf(' ');
-		if (space1 < 0) {
-			System.err.println("Couldn't parse if-delay instruction: " + line);
-			return null;
-		}
-		
-		return Integer.valueOf(line.substring(space1+1));
 	}
 
 	// 'xxx'->xxx, etc
@@ -255,7 +171,7 @@ public class ConfigurationParser {
 		}
 		char start = text.charAt(0);
 		char end = text.charAt(text.length()-1);
-		if (start != end) {
+		if (start != end && !(start == '[' && end == ']')) {
 			System.err.println("Improperly wrapped text: " + text);
 			return text;
 		}

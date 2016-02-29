@@ -13,7 +13,7 @@ public class ExecutionNodeDefinition extends OutlineNodeDefinition<ExecutionNode
 	}
 
 	@Override
-	public ExecutionNodeContent recognize(int lineNumber, String line, IRegion region, IDocument document) throws BadLocationException {
+	public ExecutionNodeContent recognize(int lineNumber, String line, String entry, String header, IRegion region, IDocument document) throws BadLocationException {
 		if (!line.startsWith("---[ Going to EXECUTE")) {
 			return null;
 		}
