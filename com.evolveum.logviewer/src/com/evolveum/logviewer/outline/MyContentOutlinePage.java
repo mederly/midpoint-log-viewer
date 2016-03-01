@@ -67,7 +67,7 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 		IDocument document = editor.getDocumentProvider().getDocument(editorInput);
 		
 		int lines = document.getNumberOfLines();
-		System.out.println("************************* Starting parsing; lines: " + lines + " *************************");
+		System.out.println("************************* Starting document parsing; lines: " + lines + " *************************");
 		long start = System.currentTimeMillis();
 
 		IResource resource = ResourceUtil.getResource(editorInput);
@@ -86,7 +86,7 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 
 		System.out.println("### FOLDING REGIONS: " + parser.getFoldingRegions().size());
 		editor.updateFoldingStructure(parser.getFoldingRegions());
-		System.out.println("Parsed in " + (System.currentTimeMillis()-start) + " ms");
+		System.out.println("Document parsed in " + (System.currentTimeMillis()-start) + " ms");
 
 		return parser.getTreeNodesAsArray();
 		

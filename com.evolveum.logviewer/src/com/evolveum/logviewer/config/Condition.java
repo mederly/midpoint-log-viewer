@@ -14,7 +14,7 @@ public class Condition {
 	private final List<AtomicCondition> atomicConditions = new ArrayList<>();
 	
 	public static Condition parse(String text) {
-		System.out.println("Condition.parse called on " + text);
+		//System.out.println("Condition.parse called on " + text);
 		
 		Condition condition = new Condition();
 		
@@ -24,7 +24,7 @@ public class Condition {
 				throw new IllegalStateException(text + " doesn't match REGEXP_COMPLETE i.e. " + REGEXP_COMPLETE);
 			}
 			String atomicAnd = matcher.group(1);
-			System.out.println(" - atomicAnd = " + atomicAnd);
+			//System.out.println(" - atomicAnd = " + atomicAnd);
 			if (atomicAnd == null || atomicAnd.length() == 0) {
 				return condition;
 			}

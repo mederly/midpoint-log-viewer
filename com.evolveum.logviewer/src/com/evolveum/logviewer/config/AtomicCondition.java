@@ -52,7 +52,7 @@ public class AtomicCondition {
 	}
 
 	public static AtomicCondition parse(String text) {
-		System.out.println(" - AtomicCondition.parse called on " + text);
+		//System.out.println(" - AtomicCondition.parse called on " + text);
 		Matcher matcher = patternAtomicAnd.matcher(text);
 		if (!matcher.matches()) {
 			throw new IllegalStateException(text + " doesn't match REGEXP_ATOMIC_AND i.e. " + REGEXP_ATOMIC_AND);

@@ -22,7 +22,7 @@ public class LineKiller {
 		}
 		try {
 			int killed = doIt(document, instructions);
-			System.out.println("Killed " + killed + " line(s)");
+			System.out.println("Killed " + killed + " lines/regions");
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 		}
