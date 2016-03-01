@@ -116,19 +116,20 @@ public class ParsingUtils {
 	
 	public static String getLogEntry(IDocument document, int lineNumber) {
 		StringBuilder sb = new StringBuilder();
+		String line = DocumentUtils.getLine(document, lineNumber);
 		int total = document.getNumberOfLines();
 		for (;;) {
 			if (lineNumber >= total) {
 				break;
 			}
-			String line = DocumentUtils.getLine(document, lineNumber);
+			sb.append(line).append("\n");
+			lineNumber++;
+			line = DocumentUtils.getLine(document, lineNumber);
 			if (line.equals(MyContentOutlinePage.CONFIG_MARKER)) {
 				break;
 			} else if (isLogEntryStart(line)) {
 				break;
 			}
-			sb.append(line).append("\n");
-			lineNumber++;
 		}
 		return sb.toString();
 	}

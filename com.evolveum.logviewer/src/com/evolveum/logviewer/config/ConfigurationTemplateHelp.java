@@ -60,8 +60,8 @@ public class ConfigurationTemplateHelp {
 		sb.append("# Conditions:\n");
 		sb.append("# ===========\n");
 		sb.append("#\n");
-		sb.append("#  <what> <operator> <text>, where:\n");
-		sb.append("#    - <what> = (line, entry, header); if not present, a reasonable default is used (e.g. for line-targeted instructions, 'line' is used, etc.)\n");
+		sb.append("#  <item> <operator> <text>, where:\n");
+		sb.append("#    - <item> = (line, entry, header); if not present, a reasonable default is used (e.g. for line-targeted instructions, 'line' is used, etc.)\n");
 		sb.append("#                  line = current line\n");
 		sb.append("#                  entry = current (whole) entry\n");
 		sb.append("#                  header = current log entry header - i.e. its first line\n");

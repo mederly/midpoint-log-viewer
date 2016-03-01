@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class AtomicCondition {
 
-	public static final String REGEXP_TEXT = "'.*'|\".*\"|\\[.*\\]";
+	public static final String REGEXP_TEXT = "'[^']*'|\"[^\"]*\"|\\[[^\\]]*\\]";
 	public static final String REGEXP_ATOMIC = "(line|entry|header)?\\s*(containing|not-containing|matching|not-matching)\\s+(" + REGEXP_TEXT + ")\\s*";
 	public static final String REGEXP_ATOMIC_AND = REGEXP_ATOMIC + "(and\\s+)?";
 	public static final Pattern patternAtomicAnd = Pattern.compile(REGEXP_ATOMIC_AND);
