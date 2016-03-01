@@ -4,6 +4,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.core.resources.IMarker;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.ISourceViewer;
@@ -13,11 +18,17 @@ import org.eclipse.jface.text.source.projection.ProjectionAnnotationModel;
 import org.eclipse.jface.text.source.projection.ProjectionSupport;
 import org.eclipse.jface.text.source.projection.ProjectionViewer;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.IEditorSite;
+import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.editors.text.TextEditor;
+import org.eclipse.ui.ide.ResourceUtil;
+import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 
 import com.evolveum.logviewer.actions.ActionExecutor;
 import com.evolveum.logviewer.outline.MyContentOutlinePage;
+import com.evolveum.logviewer.parsing.Parser;
 
 public class LogViewerEditor extends TextEditor {
 
@@ -66,6 +77,10 @@ public class LogViewerEditor extends TextEditor {
 	private ProjectionAnnotationModel annotationModel;
 	
 	public void updateFoldingStructure(List<Position> positions) {
+		if (annotationModel == null) {
+			System.out.println("Skipping folding structure update, as there is no annotationModel present.");
+			return;
+		}
 		System.out.println("*** Updating folding structure: " + positions.size() + " positions");
 		
 		Annotation[] newAnnotationsArray = new Annotation[positions.size()];
@@ -92,6 +107,28 @@ public class LogViewerEditor extends TextEditor {
 		return viewer;
 	}
 
+
+	@Override
+	protected void setDocumentProvider(IDocumentProvider provider) {
+		super.setDocumentProvider(provider);
+		System.out.println("setDocumentProvider called with " + provider);
+	}
+	
+	@Override
+	public void init(IEditorSite site, IEditorInput input) throws PartInitException {
+		super.init(site, input);
+		System.out.println("init called with site=" + site + ", input=" + input);
+		try {
+			Parser parser = parseDocument(getDocumentProvider(), input);
+			if (parser.isCreatedConfigSection()) {
+				System.out.println("Default config section was created, reparsing.");		// TODO eliminate duplicate parsing
+				parseDocument(getDocumentProvider(), input);
+			}
+		} catch (BadLocationException e) {
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	protected void editorSaved() {
 		super.editorSaved();
@@ -100,6 +137,35 @@ public class LogViewerEditor extends TextEditor {
 			outlinePage.update();
 		}
 	}
+	
+	public Parser parseDocument(IDocumentProvider documentProvider, IEditorInput editorInput) throws BadLocationException {
+		
+		IDocument document = documentProvider.getDocument(editorInput);
+
+		int lines = document.getNumberOfLines();
+		System.out.println("************************* Starting document parsing; lines: " + lines + " *************************");
+		long start = System.currentTimeMillis();
+
+		IResource resource = ResourceUtil.getResource(editorInput);
+		try {
+			if (resource != null) {
+				resource.deleteMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+			} else {
+				System.err.println("Resource is null.");
+			}
+		} catch (CoreException e1) {
+			e1.printStackTrace();
+		}   
+
+		Parser parser = new Parser(document, resource);
+		parser.parse();
+
+		System.out.println("### FOLDING REGIONS: " + parser.getFoldingRegions().size());
+		updateFoldingStructure(parser.getFoldingRegions());
+		System.out.println("Document parsed in " + (System.currentTimeMillis()-start) + " ms");
+		return parser;
+	}
+
 
 	public void applyConfigurationAndActions() {
 		System.out.println("==> Starting application of configuration and actions <==");

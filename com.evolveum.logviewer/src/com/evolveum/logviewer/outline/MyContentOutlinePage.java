@@ -1,11 +1,6 @@
 package com.evolveum.logviewer.outline;
 
-import org.eclipse.core.resources.IMarker;
-import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreePath;
@@ -17,13 +12,11 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeColumn;
 import org.eclipse.ui.IEditorInput;
-import org.eclipse.ui.ide.ResourceUtil;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.views.contentoutline.ContentOutlinePage;
 
 import com.evolveum.logviewer.editor.LogViewerEditor;
 import com.evolveum.logviewer.parsing.Parser;
-import com.evolveum.logviewer.parsing.ParsingUtils;
 
 public class MyContentOutlinePage extends ContentOutlinePage {
 	
@@ -64,64 +57,10 @@ public class MyContentOutlinePage extends ContentOutlinePage {
 		if (editorInput == null) {
 			return new TreeNode[0];
 		}
-		IDocument document = editor.getDocumentProvider().getDocument(editorInput);
-		
-		int lines = document.getNumberOfLines();
-		System.out.println("************************* Starting document parsing; lines: " + lines + " *************************");
-		long start = System.currentTimeMillis();
-
-		IResource resource = ResourceUtil.getResource(editorInput);
-		try {
-			if (resource != null) {
-				resource.deleteMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
-			} else {
-				System.err.println("Resource is null.");
-			}
-		} catch (CoreException e1) {
-			e1.printStackTrace();
-		}   
-
-		Parser parser = new Parser(document, resource);
-		parser.parse();
-
-		System.out.println("### FOLDING REGIONS: " + parser.getFoldingRegions().size());
-		editor.updateFoldingStructure(parser.getFoldingRegions());
-		System.out.println("Document parsed in " + (System.currentTimeMillis()-start) + " ms");
+		Parser parser = editor.parseDocument(editor.getDocumentProvider(), editorInput);
 
 		return parser.getTreeNodesAsArray();
 		
-	}
-
-	private int parseConfiguration(IDocument document, Parser parser) {
-		int lines = document.getNumberOfLines();
-		int configMarkerAtLine = -1;
-
-		try {
-			for (int lineNumber = lines-1; lineNumber >= 0; lineNumber--) {
-				if (fetchLine(document, lineNumber).equals(CONFIG_MARKER)) {
-					System.out.println("Found config section starting at line " + lineNumber);
-					configMarkerAtLine = lineNumber;
-					for (int i = lineNumber+1; i < lines; i++) {
-						IRegion region = document.getLineInformation(i);
-						String line = getLine(document, region);
-						parser.onConfigLine(i, line, region);
-					}
-				}
-			}
-		} catch (BadLocationException e) {
-			System.err.println("Couldn't find or parse config section" + e);
-			e.printStackTrace();
-		}
-		return configMarkerAtLine;
-	}
-
-	private String fetchLine(IDocument document, int lineNumber) throws BadLocationException {
-		IRegion region = document.getLineInformation(lineNumber);
-		return getLine(document, region);
-	}
-
-	private String getLine(IDocument document, IRegion region) throws BadLocationException {
-		return document.get(region.getOffset(), region.getLength());
 	}
 
 	@Override

@@ -50,6 +50,7 @@ public class Parser {
 	List<OidInfo> configuredOidInfos = new ArrayList<OidInfo>();
 	
 	public boolean hasConfigSection = false;
+	private boolean createdConfigSection = false;
 	
 	Map<String,ThreadInfo> discoveredThreads = new HashMap<>();
 	List<String> configuredThreads = new ArrayList<String>();
@@ -64,6 +65,10 @@ public class Parser {
 		this.componentNames = configuration.componentNames;
 	}
 	
+	public boolean isCreatedConfigSection() {
+		return createdConfigSection;
+	}
+
 	public void parse() throws BadLocationException {
 		
 		final List<OutlineNodeDefinition<?>> nodeDefinitions = configuration.getAllOutlineLevelDefinitions();
@@ -374,6 +379,7 @@ public class Parser {
 		
 		if (!hasConfigSection) {
 			sb.append(MyContentOutlinePage.CONFIG_MARKER).append("\n\n");
+			createdConfigSection = true;
 		}
 		
 		boolean change = appendOidInfos(sb);
