@@ -120,10 +120,18 @@ public class GenericNodeDefinition extends OutlineNodeDefinition<GenericNodeCont
 	}
 
 	public static OutlineNodeDefinition<?> parseFromLineAsTestDefinition(EditorConfiguration editorConfiguration, String line) {
-		Condition condition = Condition.parse("line matching '.*=====\\[\\ (\\w+\\.\\w+)\\ \\]======================================.*'");
+		Condition condition = Condition.parse("line matching '.*TestUtil\\): =====\\[\\ (\\w+\\.\\w+)\\ \\]======================================.*'");
 		String label = "TEST: ${group:1}";
 		int level = OutlineNodeDefinition.getLevel(line);
 		return new GenericNodeDefinition(editorConfiguration, condition, level, label);
 	}
+	
+	// like TestUtil): -----  WHEN test204AutzJackSelfRole --------------------------------------
 
+	public static OutlineNodeDefinition<?> parseFromLineAsTestPartDefinition(EditorConfiguration editorConfiguration, String line) {
+		Condition condition = Condition.parse("line matching '.*TestUtil\\): -----  (WHEN|THEN) (\\w+) --------------------------------------.*'");
+		String label = "${group:1}: ${group:2}";
+		int level = OutlineNodeDefinition.getLevel(line);
+		return new GenericNodeDefinition(editorConfiguration, condition, level, label);
+	}
 }

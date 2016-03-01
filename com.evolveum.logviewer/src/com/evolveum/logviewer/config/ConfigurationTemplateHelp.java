@@ -34,7 +34,7 @@ public class ConfigurationTemplateHelp {
 		sb.append("#\n");
 		sb.append("# Examples:\n");
 		sb.append("#%outline custom containing 'Product information : http://wiki.evolveum.com/display/midPoint' 1 'STARTUP AT ${date}'\n");
-		sb.append("#%outline custom matching '=====[ TestUtil\\): =====\\[ (\\w+\\.\\w+) \\]======================================' 'TEST: ${group:1}'\n");		
+		sb.append("#%outline custom matching '.*TestUtil\\): =====\\[ (\\w+\\.\\w+) \\]======================================.*' 'TEST: ${group:1}'\n");		
 		sb.append("#\n");		
 		sb.append("# ${date} - current date/time from log line\n");
 		sb.append("# ${group:N} - content of group N from the regexp\n");
@@ -44,11 +44,8 @@ public class ConfigurationTemplateHelp {
 		sb.append("#\n");
 		sb.append("# %kill-line <condition>\n");
 		sb.append("# %kill-entry <condition>\n");
-		sb.append("#       <when> = { containing, not-containing, log-line-containing, log-line-not-containing },\n");
-		sb.append("#       <what> is text to be matched enclosed in a pair of \" or \' (or any other characters)\n");
 		sb.append("#\n");
-		sb.append("# e.g. %kill containing \"(com.evolveum.midpoint.provisioning.impl.ResourceManager)\"\n");
-		sb.append("#      %kill log-line-not-containing \'[main]\' - erases information from all threads other than [main]\n");
+		sb.append("# e.g. %kill-entry header containing \"(com.evolveum.midpoint.provisioning.impl.ResourceManager)\"\n");
 		sb.append("#\n");
 		sb.append("#\n");
 		sb.append("# Line folding instructions - used to hide (fold) less important lines:\n");
@@ -81,6 +78,7 @@ public class ConfigurationTemplateHelp {
 		sb.append("#\n");
 		sb.append("%outline startup 10\n");
 		sb.append("%outline test 20\n");
+		sb.append("%outline test-part 25\n");
 		sb.append("%outline operation-summary 30\n");
 		sb.append("%outline operation-context 40\n");
 		sb.append("%outline projection-context 50\n");

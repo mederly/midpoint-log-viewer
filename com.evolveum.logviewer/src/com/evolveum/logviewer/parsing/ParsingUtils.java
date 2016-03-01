@@ -119,11 +119,11 @@ public class ParsingUtils {
 		String line = DocumentUtils.getLine(document, lineNumber);
 		int total = document.getNumberOfLines();
 		for (;;) {
+			sb.append(line).append("\n");
+			lineNumber++;
 			if (lineNumber >= total) {
 				break;
 			}
-			sb.append(line).append("\n");
-			lineNumber++;
 			line = DocumentUtils.getLine(document, lineNumber);
 			if (line.equals(MyContentOutlinePage.CONFIG_MARKER)) {
 				break;

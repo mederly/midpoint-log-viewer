@@ -48,6 +48,8 @@ public abstract class OutlineNodeDefinition<C extends OutlineNodeContent> implem
 	public static OutlineNodeDefinition<?> parseFromLine(EditorConfiguration config, String line) {
 		if (line.startsWith("%outline startup")) {
 			return GenericNodeDefinition.parseFromLineAsStartupDefinition(config, line);
+		} else if (line.startsWith("%outline test-part")) {
+			return GenericNodeDefinition.parseFromLineAsTestPartDefinition(config, line);
 		} else if (line.startsWith("%outline test")) {
 			return GenericNodeDefinition.parseFromLineAsTestDefinition(config, line);
 		} else if (line.startsWith("%outline operation-summary")) {

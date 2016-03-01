@@ -25,7 +25,7 @@ public class LogTrimmer {
 	public static void main(String[] args) throws IOException {
 		
 		if (args.length < 3) {
-			System.out.println("Usage: LogTrimmer instructions-file output-file input-file-1 ... input-file-N < commands.txt");
+			System.out.println("Usage: LogTrimmer instructions-file output-file input-file-1 ... input-file-N");
 			return;
 		}
 
