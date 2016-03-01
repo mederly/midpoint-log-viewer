@@ -12,9 +12,9 @@ public class KillInstruction implements Instruction {
 
 	// like %kill containing "(com.evolveum.midpoint.provisioning.impl.ResourceManager)"
 
-	private static final Pattern PATTERN = Pattern.compile("\\%kill\\-(?<kind>line|entry)\\s+" + "(?<condition>" + Condition.REGEXP_COMPLETE + ")" + "\\s*(#.*)?");
+	private static final Pattern PATTERN = Pattern.compile("\\%kill-(?<kind>line|entry|duplicate-entry)\\s*" + "(?<condition>" + Condition.REGEXP_COMPLETE + ")" + "\\s*(#.*)?");
 	
-	public static enum Kind { LINE, ENTRY };
+	public static enum Kind { LINE, ENTRY, DUPLICATE_ENTRY };
 	
 	private final Kind kind;
 	private final Condition condition;
@@ -45,6 +45,8 @@ public class KillInstruction implements Instruction {
 			kind = Kind.LINE;
 		} else if ("entry".equalsIgnoreCase(kindString)) {
 			kind = Kind.ENTRY;
+		} else if ("duplicate-entry".equalsIgnoreCase(kindString)) {
+			kind = Kind.DUPLICATE_ENTRY;
 		} else {
 			throw new IllegalStateException("Unknown kind: " + kindString);
 		}

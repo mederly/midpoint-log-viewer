@@ -1,5 +1,6 @@
 package com.evolveum.logviewer.actions;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.jface.text.BadLocationException;
@@ -21,18 +22,26 @@ public class LineKiller {
 			return;
 		}
 		try {
-			int killed = doIt(document, instructions);
-			System.out.println("Killed " + killed + " lines/regions");
+			doIt(document, instructions);
 		} catch (BadLocationException e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public static int doIt(IDocument document, List<KillInstruction> instructions) throws BadLocationException {
+	static class Region {
+		int startLine;
+		int followingLine;		// exclusive
+		public Region(int startLine, int followingLine) {
+			this.startLine = startLine;
+			this.followingLine = followingLine;
+		}
+	}
+	
+	public static void doIt(IDocument document, List<KillInstruction> instructions) throws BadLocationException {
 		
-		int killed = 0;
+		String previousEntry = null, entry = null, header = null;
 		
-		String entry = null, header = null; 
+		final List<Region> regionsToKill = new ArrayList<>(); 
 		
 		for (int lineNumber = 0; lineNumber < document.getNumberOfLines(); lineNumber++) {
 			
@@ -44,37 +53,54 @@ public class LineKiller {
 			
 			if (ParsingUtils.isLogEntryStart(line)) {
 				header = line;
+				previousEntry = entry;
 				entry = ParsingUtils.getLogEntry(document, lineNumber);
 			}
 			
 			for (KillInstruction instr : instructions) {
-				if (instr.matches(line, entry, header)) {
-					final int startLine, followingLine;
-					if (instr.getKind() == Kind.LINE) {
-						startLine = lineNumber;
-						followingLine = lineNumber+1; 
-					} else {
-						startLine = lineNumber;
-						followingLine = ParsingUtils.findLastLogEntryLine(document, startLine) + 1;
-					}
-					int start = document.getLineOffset(startLine);
-					int end;
-					if (followingLine >= document.getNumberOfLines()) {
-						end = document.getLength();
-					} else {
-						end = document.getLineOffset(followingLine);
-					}
-					System.out.println("Killing lines #" + startLine + " to #" + (followingLine-1));
-					document.replace(start, end-start, "");
-					killed++;
-					
-					lineNumber = startLine-1;			// restart at deleted line
-					break;
+				if (!instr.matches(line, entry, header)) {
+					continue;
 				}
+				if (instr.getKind() == Kind.DUPLICATE_ENTRY && (previousEntry == null || entry == null || !entry.equals(previousEntry))) {
+					continue;
+				}
+				if (instr.getKind() == Kind.LINE) {
+					regionsToKill.add(new Region(lineNumber, lineNumber+1));
+				} else {
+					regionsToKill.add(new Region(lineNumber, ParsingUtils.findLastLogEntryLine(document, lineNumber) + 1));						
+				}
+				break;
 			}
 		}
-		return killed;
+		
+		System.out.println("Going to remove " + regionsToKill.size() + " region(s)");
+		int removedLines = 0;
+		for (int i = 0; i < regionsToKill.size(); ) {
+			Region region = regionsToKill.get(i);
+			int startLine = region.startLine;
+			int followingLine = region.followingLine;
+			while (++i < regionsToKill.size() && regionsToKill.get(i).startLine == followingLine) {
+				followingLine = regionsToKill.get(i).followingLine;
+			}
+			kill(document, startLine, followingLine, removedLines);
+			removedLines += (followingLine-startLine);
+			System.out.print("Removed " + i + " out of " + regionsToKill.size() + " regions; " + removedLines + " lines\r");
+		}
+		System.out.println();
 	}
 
+	private static void kill(IDocument document, int startLine, int followingLine, int alreadyRemovedLines) throws BadLocationException {
+		startLine -= alreadyRemovedLines;
+		followingLine -= alreadyRemovedLines;
+		
+		int start = document.getLineOffset(startLine);
+		int end;
+		if (followingLine >= document.getNumberOfLines()) {
+			end = document.getLength();
+		} else {
+			end = document.getLineOffset(followingLine);
+		}
+		document.replace(start, end-start, "");
+	}
 
 }

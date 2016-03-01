@@ -44,6 +44,7 @@ public class ConfigurationTemplateHelp {
 		sb.append("#\n");
 		sb.append("# %kill-line <condition>\n");
 		sb.append("# %kill-entry <condition>\n");
+		sb.append("# %kill-duplicate-entry [<condition>]\n");
 		sb.append("#\n");
 		sb.append("# e.g. %kill-entry header containing \"(com.evolveum.midpoint.provisioning.impl.ResourceManager)\"\n");
 		sb.append("#\n");
