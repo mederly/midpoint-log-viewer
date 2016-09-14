@@ -63,7 +63,7 @@
              commandId="com.evolveum.logviewer.applyConfiguration"
              contextId="org.eclipse.ui.contexts.window"
              schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
-             sequence="M3+F2">
+             sequence="M3+F3">
        </key>
     </extension>
     

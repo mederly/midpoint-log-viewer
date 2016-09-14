@@ -316,6 +316,9 @@ public class Parser {
 		i += text.length();
 		int j = line.indexOf(' ', i);
 		if (j < 0) {
+			j = line.indexOf('.', i);
+		}
+		if (j < 0) {
 			System.err.println("Warning: strange entry/exit line: " + line);
 			return null;
 		}
